@@ -1,0 +1,60 @@
+# =========================
+# FRONTEND / ANGULAR
+# =========================
+frontend/node_modules/
+frontend/.angular/
+frontend/dist/
+frontend/out-tsc/
+frontend/coverage/
+frontend/.tmp/
+frontend/.cache/
+
+# =========================
+# BACKEND / JAVA / MAVEN
+# =========================
+backend/target/
+*.class
+
+# =========================
+# BANCO LOCAL / H2
+# =========================
+backend/data/*.mv.db
+backend/data/*.lock.db
+backend/data/*.trace.db
+
+# =========================
+# ENV FILES
+# =========================
+.env
+.env.*
+
+# =========================
+# IDE / EDITOR
+# =========================
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+
+# =========================
+# SISTEMA
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# LOGS / TEMP
+# =========================
+*.log
+tmp/
+temp/
+.cache/
+
+# =========================
+# MANTER VERSIONADO
+# =========================
+# frontend/package-lock.json
+# backend/pom.xml
+# backend/src/
+# frontend/src/
