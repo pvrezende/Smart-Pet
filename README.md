@@ -1,5 +1,10 @@
 # Smart Pet - Java + Spring Boot + Angular
 
+
+## Dashboard
+
+![Dashboard Smart Pet](docs/images/dashboard.png)
+
 Projeto refeito do zero com estrutura mais organizada.
 
 ## Estrutura
