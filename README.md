@@ -34,6 +34,11 @@ cd "C:\PROJETOS\smart-pet-v2\backend"
 & "C:\Users\Paulo Rezende\maven\apache-maven-3.9.14-bin\bin\mvn.cmd" clean compile -e
 #subir#
 & "C:\Users\Paulo Rezende\maven\apache-maven-3.9.14-bin\bin\mvn.cmd" spring-boot:run -e
+
+#direto sempre que atualizar#
+cd "C:\PROJETOS\smart-pet-v2\backend"
+& "C:\Users\Paulo Rezende\maven\apache-maven-3.9.14-bin\bin\mvn.cmd" clean compile -e
+& "C:\Users\Paulo Rezende\maven\apache-maven-3.9.14-bin\bin\mvn.cmd" spring-boot:run -e
 ```
 
 API: `http://localhost:8080`

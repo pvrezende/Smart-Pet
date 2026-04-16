@@ -28,4 +28,10 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
             LocalDateTime end,
             String status
     );
+
+    long countByStatus(String status);
+
+    long countBySaleDateBetweenAndStatus(LocalDateTime start, LocalDateTime end, String status);
+
+    List<Sale> findBySaleDateBetweenAndStatus(LocalDateTime start, LocalDateTime end, String status);
 }
