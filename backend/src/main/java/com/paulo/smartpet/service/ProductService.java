@@ -1,7 +1,10 @@
 package com.paulo.smartpet.service;
 
+import com.paulo.smartpet.dto.ProductRequest;
 import com.paulo.smartpet.entity.Product;
 import com.paulo.smartpet.entity.StockMovement;
+import com.paulo.smartpet.exception.BusinessException;
+import com.paulo.smartpet.exception.ResourceNotFoundException;
 import com.paulo.smartpet.repository.ProductRepository;
 import com.paulo.smartpet.repository.StockMovementRepository;
 import org.springframework.stereotype.Service;
@@ -27,24 +30,47 @@ public class ProductService {
     }
 
     public Product getById(Long id) {
-        return productRepository.findById(id).orElseThrow(() -> new RuntimeException("Produto não encontrado"));
+        return productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
     }
 
-    public Product create(Product product) {
+    public Product create(ProductRequest request) {
+        validateBusinessRules(request);
+
+        Product product = new Product();
         product.setId(null);
+        product.setName(request.name().trim());
+        product.setAnimalType(request.animalType().trim().toLowerCase());
+        product.setBrand(request.brand().trim());
+        product.setWeight(request.weight());
+        product.setCostPrice(request.costPrice());
+        product.setSalePrice(request.salePrice());
+        product.setStock(request.stock());
+        product.setMinimumStock(request.minimumStock());
         product.setActive(true);
-        return productRepository.save(product);
+
+        Product saved = productRepository.save(product);
+
+        if (saved.getStock() > 0) {
+            saveMovement(saved, "ENTRADA", saved.getStock(), 0, saved.getStock(), "Estoque inicial");
+        }
+
+        return saved;
     }
 
-    public Product update(Long id, Product payload) {
+    public Product update(Long id, ProductRequest request) {
+        validateBusinessRules(request);
+
         Product product = getById(id);
-        product.setName(payload.getName());
-        product.setAnimalType(payload.getAnimalType());
-        product.setBrand(payload.getBrand());
-        product.setWeight(payload.getWeight());
-        product.setCostPrice(payload.getCostPrice());
-        product.setSalePrice(payload.getSalePrice());
-        product.setMinimumStock(payload.getMinimumStock());
+        product.setName(request.name().trim());
+        product.setAnimalType(request.animalType().trim().toLowerCase());
+        product.setBrand(request.brand().trim());
+        product.setWeight(request.weight());
+        product.setCostPrice(request.costPrice());
+        product.setSalePrice(request.salePrice());
+        product.setStock(request.stock());
+        product.setMinimumStock(request.minimumStock());
+
         return productRepository.save(product);
     }
 
@@ -57,9 +83,15 @@ public class ProductService {
     @Transactional
     public Product addStock(Long id, Integer quantity, String observation) {
         Product product = getById(id);
+
+        if (!Boolean.TRUE.equals(product.getActive())) {
+            throw new BusinessException("Não é possível movimentar estoque de produto inativo");
+        }
+
         int previous = product.getStock();
         product.setStock(previous + quantity);
         Product saved = productRepository.save(product);
+
         saveMovement(saved, "ENTRADA", quantity, previous, saved.getStock(), observation);
         return saved;
     }
@@ -67,14 +99,27 @@ public class ProductService {
     @Transactional
     public Product removeStock(Long id, Integer quantity, String observation) {
         Product product = getById(id);
-        if (product.getStock() < quantity) {
-            throw new RuntimeException("Estoque insuficiente");
+
+        if (!Boolean.TRUE.equals(product.getActive())) {
+            throw new BusinessException("Não é possível movimentar estoque de produto inativo");
         }
+
+        if (product.getStock() < quantity) {
+            throw new BusinessException("Estoque insuficiente");
+        }
+
         int previous = product.getStock();
         product.setStock(previous - quantity);
         Product saved = productRepository.save(product);
+
         saveMovement(saved, "SAIDA", quantity, previous, saved.getStock(), observation);
         return saved;
+    }
+
+    private void validateBusinessRules(ProductRequest request) {
+        if (request.salePrice() < request.costPrice()) {
+            throw new BusinessException("Preço de venda não pode ser menor que o preço de custo");
+        }
     }
 
     private void saveMovement(Product product, String type, Integer quantity, Integer previous, Integer current, String observation) {

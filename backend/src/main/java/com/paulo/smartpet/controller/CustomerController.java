@@ -1,7 +1,10 @@
 package com.paulo.smartpet.controller;
 
+import com.paulo.smartpet.dto.CustomerRequest;
 import com.paulo.smartpet.entity.Customer;
 import com.paulo.smartpet.service.CustomerService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,16 +29,18 @@ public class CustomerController {
     }
 
     @PostMapping
-    public Customer create(@RequestBody Customer customer) {
-        return customerService.create(customer);
+    @ResponseStatus(HttpStatus.CREATED)
+    public Customer create(@Valid @RequestBody CustomerRequest request) {
+        return customerService.create(request);
     }
 
     @PutMapping("/{id}")
-    public Customer update(@PathVariable Long id, @RequestBody Customer customer) {
-        return customerService.update(id, customer);
+    public Customer update(@PathVariable Long id, @Valid @RequestBody CustomerRequest request) {
+        return customerService.update(id, request);
     }
 
     @PatchMapping("/{id}/deactivate")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactivate(@PathVariable Long id) {
         customerService.deactivate(id);
     }

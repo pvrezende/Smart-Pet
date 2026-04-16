@@ -3,6 +3,8 @@ package com.paulo.smartpet.controller;
 import com.paulo.smartpet.dto.CreateSaleRequest;
 import com.paulo.smartpet.entity.Sale;
 import com.paulo.smartpet.service.SaleService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,7 +24,8 @@ public class SaleController {
     }
 
     @PostMapping
-    public Sale create(@RequestBody CreateSaleRequest request) {
+    @ResponseStatus(HttpStatus.CREATED)
+    public Sale create(@Valid @RequestBody CreateSaleRequest request) {
         return saleService.create(request);
     }
 

@@ -2,7 +2,13 @@ package com.paulo.smartpet.service;
 
 import com.paulo.smartpet.dto.CreateSaleRequest;
 import com.paulo.smartpet.dto.SaleItemRequest;
-import com.paulo.smartpet.entity.*;
+import com.paulo.smartpet.entity.Customer;
+import com.paulo.smartpet.entity.Product;
+import com.paulo.smartpet.entity.Sale;
+import com.paulo.smartpet.entity.SaleItem;
+import com.paulo.smartpet.entity.StockMovement;
+import com.paulo.smartpet.exception.BusinessException;
+import com.paulo.smartpet.exception.ResourceNotFoundException;
 import com.paulo.smartpet.repository.CustomerRepository;
 import com.paulo.smartpet.repository.ProductRepository;
 import com.paulo.smartpet.repository.SaleRepository;
@@ -20,7 +26,12 @@ public class SaleService {
     private final CustomerRepository customerRepository;
     private final StockMovementRepository stockMovementRepository;
 
-    public SaleService(SaleRepository saleRepository, ProductRepository productRepository, CustomerRepository customerRepository, StockMovementRepository stockMovementRepository) {
+    public SaleService(
+            SaleRepository saleRepository,
+            ProductRepository productRepository,
+            CustomerRepository customerRepository,
+            StockMovementRepository stockMovementRepository
+    ) {
         this.saleRepository = saleRepository;
         this.productRepository = productRepository;
         this.customerRepository = customerRepository;
@@ -34,23 +45,33 @@ public class SaleService {
     @Transactional
     public Sale create(CreateSaleRequest request) {
         if (request.items() == null || request.items().isEmpty()) {
-            throw new RuntimeException("Carrinho vazio");
+            throw new BusinessException("Carrinho vazio");
         }
 
         Sale sale = new Sale();
+
         if (request.customerId() != null) {
-            sale.setCustomer(customerRepository.findById(request.customerId()).orElseThrow(() -> new RuntimeException("Cliente não encontrado")));
+            Customer customer = customerRepository.findById(request.customerId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado"));
+            sale.setCustomer(customer);
         }
-        sale.setPaymentMethod(request.paymentMethod());
-        sale.setNotes(request.notes());
+
+        sale.setPaymentMethod(request.paymentMethod().trim());
+        sale.setNotes(normalizeBlank(request.notes()));
         sale.setDiscount(request.discount() == null ? BigDecimal.ZERO : request.discount());
 
         BigDecimal total = BigDecimal.ZERO;
 
         for (SaleItemRequest itemRequest : request.items()) {
-            Product product = productRepository.findById(itemRequest.productId()).orElseThrow(() -> new RuntimeException("Produto não encontrado"));
+            Product product = productRepository.findById(itemRequest.productId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
+
+            if (!Boolean.TRUE.equals(product.getActive())) {
+                throw new BusinessException("Produto inativo não pode ser vendido: " + product.getName());
+            }
+
             if (product.getStock() < itemRequest.quantity()) {
-                throw new RuntimeException("Estoque insuficiente para " + product.getName());
+                throw new BusinessException("Estoque insuficiente para " + product.getName());
             }
 
             SaleItem item = new SaleItem();
@@ -59,6 +80,7 @@ public class SaleService {
             item.setQuantity(itemRequest.quantity());
             item.setUnitPrice(BigDecimal.valueOf(product.getSalePrice()));
             item.setSubtotal(item.getUnitPrice().multiply(BigDecimal.valueOf(itemRequest.quantity())));
+
             sale.getItems().add(item);
             total = total.add(item.getSubtotal());
 
@@ -76,15 +98,22 @@ public class SaleService {
             stockMovementRepository.save(movement);
         }
 
+        if (sale.getDiscount().compareTo(total) > 0) {
+            throw new BusinessException("Desconto não pode ser maior que o total da venda");
+        }
+
         sale.setTotalAmount(total);
         sale.setFinalAmount(total.subtract(sale.getDiscount()));
+
         return saleRepository.save(sale);
     }
 
     @Transactional
     public Sale cancel(Long id) {
-        Sale sale = saleRepository.findById(id).orElseThrow(() -> new RuntimeException("Venda não encontrada"));
-        if ("CANCELADA".equals(sale.getStatus())) {
+        Sale sale = saleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada"));
+
+        if ("CANCELADA".equalsIgnoreCase(sale.getStatus())) {
             return sale;
         }
 
@@ -106,5 +135,9 @@ public class SaleService {
 
         sale.setStatus("CANCELADA");
         return saleRepository.save(sale);
+    }
+
+    private String normalizeBlank(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

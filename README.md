@@ -25,6 +25,9 @@ cd backend
 mvn spring-boot:run 
 #ou#
 /c/Users/"Paulo Rezende"/maven/apache-maven-3.9.14-bin/bin/mvn.cmd clean spring-boot:run -e
+#ou#
+C:\PROJETOS\smart-pet-v2\backend
+& "C:\Users\Paulo Rezende\maven\apache-maven-3.9.14-bin\bin\mvn.cmd" spring-boot:run -e
 ```
 
 API: `http://localhost:8080`

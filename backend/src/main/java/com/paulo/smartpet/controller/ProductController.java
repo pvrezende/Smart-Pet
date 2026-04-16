@@ -1,8 +1,11 @@
 package com.paulo.smartpet.controller;
 
+import com.paulo.smartpet.dto.ProductRequest;
 import com.paulo.smartpet.dto.StockAdjustmentRequest;
 import com.paulo.smartpet.entity.Product;
 import com.paulo.smartpet.service.ProductService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,27 +30,29 @@ public class ProductController {
     }
 
     @PostMapping
-    public Product create(@RequestBody Product product) {
-        return productService.create(product);
+    @ResponseStatus(HttpStatus.CREATED)
+    public Product create(@Valid @RequestBody ProductRequest request) {
+        return productService.create(request);
     }
 
     @PutMapping("/{id}")
-    public Product update(@PathVariable Long id, @RequestBody Product product) {
-        return productService.update(id, product);
+    public Product update(@PathVariable Long id, @Valid @RequestBody ProductRequest request) {
+        return productService.update(id, request);
     }
 
     @PatchMapping("/{id}/deactivate")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactivate(@PathVariable Long id) {
         productService.deactivate(id);
     }
 
     @PostMapping("/{id}/stock/in")
-    public Product stockIn(@PathVariable Long id, @RequestBody StockAdjustmentRequest request) {
+    public Product stockIn(@PathVariable Long id, @Valid @RequestBody StockAdjustmentRequest request) {
         return productService.addStock(id, request.quantity(), request.observation());
     }
 
     @PostMapping("/{id}/stock/out")
-    public Product stockOut(@PathVariable Long id, @RequestBody StockAdjustmentRequest request) {
+    public Product stockOut(@PathVariable Long id, @Valid @RequestBody StockAdjustmentRequest request) {
         return productService.removeStock(id, request.quantity(), request.observation());
     }
 }

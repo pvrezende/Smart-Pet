@@ -1,6 +1,9 @@
 package com.paulo.smartpet.service;
 
+import com.paulo.smartpet.dto.CustomerRequest;
 import com.paulo.smartpet.entity.Customer;
+import com.paulo.smartpet.exception.BusinessException;
+import com.paulo.smartpet.exception.ResourceNotFoundException;
 import com.paulo.smartpet.repository.CustomerRepository;
 import org.springframework.stereotype.Service;
 
@@ -19,24 +22,46 @@ public class CustomerService {
     }
 
     public Customer getById(Long id) {
-        return customerRepository.findById(id).orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
+        return customerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado"));
     }
 
-    public Customer create(Customer customer) {
+    public Customer create(CustomerRequest request) {
+        String cpf = cleanNumber(request.cpf());
+        String phone = cleanNumber(request.phone());
+
+        if (customerRepository.existsByCpf(cpf)) {
+            throw new BusinessException("Já existe cliente cadastrado com este CPF");
+        }
+
+        Customer customer = new Customer();
         customer.setId(null);
-        customer.setCpf(cleanNumber(customer.getCpf()));
-        customer.setPhone(cleanNumber(customer.getPhone()));
+        customer.setName(request.name().trim());
+        customer.setCpf(cpf);
+        customer.setPhone(phone);
+        customer.setEmail(normalizeBlank(request.email()));
+        customer.setAddress(normalizeBlank(request.address()));
         customer.setActive(true);
+
         return customerRepository.save(customer);
     }
 
-    public Customer update(Long id, Customer payload) {
+    public Customer update(Long id, CustomerRequest request) {
         Customer customer = getById(id);
-        customer.setName(payload.getName());
-        customer.setCpf(cleanNumber(payload.getCpf()));
-        customer.setPhone(cleanNumber(payload.getPhone()));
-        customer.setEmail(payload.getEmail());
-        customer.setAddress(payload.getAddress());
+
+        String cpf = cleanNumber(request.cpf());
+        String phone = cleanNumber(request.phone());
+
+        if (customerRepository.existsByCpfAndIdNot(cpf, id)) {
+            throw new BusinessException("Já existe outro cliente cadastrado com este CPF");
+        }
+
+        customer.setName(request.name().trim());
+        customer.setCpf(cpf);
+        customer.setPhone(phone);
+        customer.setEmail(normalizeBlank(request.email()));
+        customer.setAddress(normalizeBlank(request.address()));
+
         return customerRepository.save(customer);
     }
 
@@ -48,5 +73,9 @@ public class CustomerService {
 
     private String cleanNumber(String value) {
         return value == null ? null : value.replaceAll("\\D", "");
+    }
+
+    private String normalizeBlank(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }
