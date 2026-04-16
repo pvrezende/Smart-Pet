@@ -1,27 +1,21 @@
 # Smart Pet Backend
 
-Backend em Java 17 com Spring Boot 3.
+Backend do sistema Smart Pet desenvolvido com Java 17+, Spring Boot 3, Spring Data JPA e H2.
 
-## Rodar
+## Tecnologias
+- Java
+- Spring Boot
+- Spring Web
+- Spring Data JPA
+- H2 Database
+- Lombok
+- Bean Validation
+- JUnit / MockMvc
 
-```bash
-mvn spring-boot:run
-```
+## Como executar
 
-## Endpoints
+No PowerShell:
 
-- `GET /api/dashboard`
-- `GET /api/products`
-- `POST /api/products`
-- `POST /api/products/{id}/stock/in`
-- `POST /api/products/{id}/stock/out`
-- `GET /api/customers`
-- `POST /api/customers`
-- `GET /api/sales`
-- `POST /api/sales`
-- `PATCH /api/sales/{id}/cancel`
-
-## Banco
-
-- H2 em arquivo local
-- Console: `http://localhost:8080/h2-console`
+```powershell
+cd "C:\PROJETOS\smart-pet-v2\backend"
+& "C:\Users\Paulo Rezende\maven\apache-maven-3.9.14-bin\bin\mvn.cmd" clean spring-boot:run -e

@@ -1,7 +1,11 @@
 package com.paulo.smartpet.service;
 
 import com.paulo.smartpet.dto.CreateSaleRequest;
+import com.paulo.smartpet.dto.SaleCustomerResponse;
+import com.paulo.smartpet.dto.SaleDetailsResponse;
 import com.paulo.smartpet.dto.SaleItemRequest;
+import com.paulo.smartpet.dto.SaleItemResponse;
+import com.paulo.smartpet.dto.SaleResponse;
 import com.paulo.smartpet.entity.Customer;
 import com.paulo.smartpet.entity.Product;
 import com.paulo.smartpet.entity.Sale;
@@ -41,7 +45,7 @@ public class SaleService {
         this.stockMovementRepository = stockMovementRepository;
     }
 
-    public List<Sale> list(Long customerId, String status, LocalDate startDate, LocalDate endDate) {
+    public List<SaleResponse> list(Long customerId, String status, LocalDate startDate, LocalDate endDate) {
         String normalizedStatus = normalizeStatus(status);
 
         if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
@@ -51,44 +55,38 @@ public class SaleService {
         LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
         LocalDateTime end = endDate != null ? endDate.atTime(LocalTime.MAX) : null;
 
+        List<Sale> sales;
+
         if (customerId != null && start != null && end != null && normalizedStatus != null) {
-            return saleRepository.findByCustomerIdAndSaleDateBetweenAndStatusOrderBySaleDateDesc(customerId, start, end, normalizedStatus);
+            sales = saleRepository.findByCustomerIdAndSaleDateBetweenAndStatusOrderBySaleDateDesc(customerId, start, end, normalizedStatus);
+        } else if (customerId != null && start != null && end != null) {
+            sales = saleRepository.findByCustomerIdAndSaleDateBetweenOrderBySaleDateDesc(customerId, start, end);
+        } else if (start != null && end != null && normalizedStatus != null) {
+            sales = saleRepository.findBySaleDateBetweenAndStatusOrderBySaleDateDesc(start, end, normalizedStatus);
+        } else if (start != null && end != null) {
+            sales = saleRepository.findBySaleDateBetweenOrderBySaleDateDesc(start, end);
+        } else if (customerId != null && normalizedStatus != null) {
+            sales = saleRepository.findByCustomerIdAndStatusOrderBySaleDateDesc(customerId, normalizedStatus);
+        } else if (customerId != null) {
+            sales = saleRepository.findByCustomerIdOrderBySaleDateDesc(customerId);
+        } else if (normalizedStatus != null) {
+            sales = saleRepository.findByStatusOrderBySaleDateDesc(normalizedStatus);
+        } else {
+            sales = saleRepository.findAllByOrderBySaleDateDesc();
         }
 
-        if (customerId != null && start != null && end != null) {
-            return saleRepository.findByCustomerIdAndSaleDateBetweenOrderBySaleDateDesc(customerId, start, end);
-        }
-
-        if (start != null && end != null && normalizedStatus != null) {
-            return saleRepository.findBySaleDateBetweenAndStatusOrderBySaleDateDesc(start, end, normalizedStatus);
-        }
-
-        if (start != null && end != null) {
-            return saleRepository.findBySaleDateBetweenOrderBySaleDateDesc(start, end);
-        }
-
-        if (customerId != null && normalizedStatus != null) {
-            return saleRepository.findByCustomerIdAndStatusOrderBySaleDateDesc(customerId, normalizedStatus);
-        }
-
-        if (customerId != null) {
-            return saleRepository.findByCustomerIdOrderBySaleDateDesc(customerId);
-        }
-
-        if (normalizedStatus != null) {
-            return saleRepository.findByStatusOrderBySaleDateDesc(normalizedStatus);
-        }
-
-        return saleRepository.findAllByOrderBySaleDateDesc();
+        return sales.stream().map(this::toResponse).toList();
     }
 
-    public Sale getById(Long id) {
-        return saleRepository.findById(id)
+    public SaleDetailsResponse getById(Long id) {
+        Sale sale = saleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada"));
+
+        return toDetailsResponse(sale);
     }
 
     @Transactional
-    public Sale create(CreateSaleRequest request) {
+    public SaleDetailsResponse create(CreateSaleRequest request) {
         if (request.items() == null || request.items().isEmpty()) {
             throw new BusinessException("Carrinho vazio");
         }
@@ -150,15 +148,17 @@ public class SaleService {
         sale.setTotalAmount(total);
         sale.setFinalAmount(total.subtract(sale.getDiscount()));
 
-        return saleRepository.save(sale);
+        Sale saved = saleRepository.save(sale);
+        return toDetailsResponse(saved);
     }
 
     @Transactional
-    public Sale cancel(Long id) {
-        Sale sale = getById(id);
+    public SaleDetailsResponse cancel(Long id) {
+        Sale sale = saleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada"));
 
         if ("CANCELADA".equalsIgnoreCase(sale.getStatus())) {
-            return sale;
+            return toDetailsResponse(sale);
         }
 
         for (SaleItem item : sale.getItems()) {
@@ -178,7 +178,66 @@ public class SaleService {
         }
 
         sale.setStatus("CANCELADA");
-        return saleRepository.save(sale);
+        Sale saved = saleRepository.save(sale);
+        return toDetailsResponse(saved);
+    }
+
+    private SaleResponse toResponse(Sale sale) {
+        return new SaleResponse(
+                sale.getId(),
+                sale.getSaleDate(),
+                toCustomerResponse(sale.getCustomer()),
+                sale.getTotalAmount(),
+                sale.getDiscount(),
+                sale.getFinalAmount(),
+                sale.getPaymentMethod(),
+                sale.getStatus(),
+                sale.getNotes(),
+                sale.getItems() == null ? 0 : sale.getItems().size()
+        );
+    }
+
+    private SaleDetailsResponse toDetailsResponse(Sale sale) {
+        List<SaleItemResponse> items = sale.getItems()
+                .stream()
+                .map(this::toItemResponse)
+                .toList();
+
+        return new SaleDetailsResponse(
+                sale.getId(),
+                sale.getSaleDate(),
+                toCustomerResponse(sale.getCustomer()),
+                sale.getTotalAmount(),
+                sale.getDiscount(),
+                sale.getFinalAmount(),
+                sale.getPaymentMethod(),
+                sale.getStatus(),
+                sale.getNotes(),
+                items
+        );
+    }
+
+    private SaleItemResponse toItemResponse(SaleItem item) {
+        return new SaleItemResponse(
+                item.getId(),
+                item.getProduct() != null ? item.getProduct().getId() : null,
+                item.getProduct() != null ? item.getProduct().getName() : null,
+                item.getQuantity(),
+                item.getUnitPrice(),
+                item.getSubtotal()
+        );
+    }
+
+    private SaleCustomerResponse toCustomerResponse(Customer customer) {
+        if (customer == null) {
+            return null;
+        }
+
+        return new SaleCustomerResponse(
+                customer.getId(),
+                customer.getName(),
+                customer.getCpf()
+        );
     }
 
     private String normalizeBlank(String value) {

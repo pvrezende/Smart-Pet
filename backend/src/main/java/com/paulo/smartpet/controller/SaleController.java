@@ -1,7 +1,8 @@
 package com.paulo.smartpet.controller;
 
 import com.paulo.smartpet.dto.CreateSaleRequest;
-import com.paulo.smartpet.entity.Sale;
+import com.paulo.smartpet.dto.SaleDetailsResponse;
+import com.paulo.smartpet.dto.SaleResponse;
 import com.paulo.smartpet.service.SaleService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -20,7 +21,7 @@ public class SaleController {
     }
 
     @GetMapping
-    public List<Sale> list(
+    public List<SaleResponse> list(
             @RequestParam(required = false) Long customerId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) LocalDate startDate,
@@ -30,18 +31,18 @@ public class SaleController {
     }
 
     @GetMapping("/{id}")
-    public Sale getById(@PathVariable Long id) {
+    public SaleDetailsResponse getById(@PathVariable Long id) {
         return saleService.getById(id);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Sale create(@Valid @RequestBody CreateSaleRequest request) {
+    public SaleDetailsResponse create(@Valid @RequestBody CreateSaleRequest request) {
         return saleService.create(request);
     }
 
     @PatchMapping("/{id}/cancel")
-    public Sale cancel(@PathVariable Long id) {
+    public SaleDetailsResponse cancel(@PathVariable Long id) {
         return saleService.cancel(id);
     }
 }
