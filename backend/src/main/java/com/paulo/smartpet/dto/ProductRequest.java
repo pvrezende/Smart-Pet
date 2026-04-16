@@ -4,6 +4,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record ProductRequest(
@@ -38,6 +39,13 @@ public record ProductRequest(
 
         @NotNull(message = "Estoque mínimo é obrigatório")
         @Min(value = 0, message = "Estoque mínimo não pode ser negativo")
-        Integer minimumStock
+        Integer minimumStock,
+
+        @Size(max = 100, message = "Código de barras deve ter no máximo 100 caracteres")
+        @Pattern(
+                regexp = "^$|^[0-9A-Za-z\\-]+$",
+                message = "Código de barras deve conter apenas letras, números ou hífen"
+        )
+        String barcode
 ) {
 }

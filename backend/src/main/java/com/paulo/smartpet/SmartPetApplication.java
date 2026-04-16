@@ -25,10 +25,10 @@ public class SmartPetApplication {
     ) {
         return args -> {
             if (productRepository.count() == 0) {
-                productRepository.save(new Product(null, "Royal Canin Adult", "cao", "Royal Canin", 15.0, 70.0, 89.90, 12, 5, true));
-                productRepository.save(new Product(null, "Whiskas Adulto Peixe", "gato", "Whiskas", 3.0, 18.0, 24.50, 8, 5, true));
-                productRepository.save(new Product(null, "Pedigree Adulto Carne", "cao", "Pedigree", 20.0, 50.0, 65.00, 15, 5, true));
-                productRepository.save(new Product(null, "Golden Gatos Castrados", "gato", "Golden", 10.1, 60.0, 78.90, 6, 5, true));
+                productRepository.save(new Product(null, "Royal Canin Adult", "cao", "Royal Canin", 15.0, 70.0, 89.90, 12, 5, "7891000100101", true));
+                productRepository.save(new Product(null, "Whiskas Adulto Peixe", "gato", "Whiskas", 3.0, 18.0, 24.50, 8, 5, "7891000100102", true));
+                productRepository.save(new Product(null, "Pedigree Adulto Carne", "cao", "Pedigree", 20.0, 50.0, 65.00, 15, 5, "7891000100103", true));
+                productRepository.save(new Product(null, "Golden Gatos Castrados", "gato", "Golden", 10.1, 60.0, 78.90, 6, 5, "7891000100104", true));
             }
 
             if (customerRepository.count() == 0) {

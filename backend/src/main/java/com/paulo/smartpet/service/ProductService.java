@@ -65,6 +65,27 @@ public class ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
     }
 
+    public Product getByBarcode(String barcode) {
+        String normalizedBarcode = normalizeBarcode(barcode);
+
+        if (normalizedBarcode == null) {
+            throw new BusinessException("Código de barras é obrigatório");
+        }
+
+        return productRepository.findByBarcode(normalizedBarcode)
+                .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado para o código de barras informado"));
+    }
+
+    public List<Product> searchByBarcode(String barcode) {
+        String normalizedBarcode = normalizeBarcode(barcode);
+
+        if (normalizedBarcode == null) {
+            throw new BusinessException("Código de barras é obrigatório");
+        }
+
+        return productRepository.findByBarcodeContainingIgnoreCaseOrderByNameAsc(normalizedBarcode);
+    }
+
     public List<StockMovementResponse> getMovementsByProduct(Long productId) {
         getById(productId);
 
@@ -75,7 +96,7 @@ public class ProductService {
     }
 
     public Product create(ProductRequest request) {
-        validateBusinessRules(request);
+        validateBusinessRules(request, null);
 
         Product product = new Product();
         product.setId(null);
@@ -87,6 +108,7 @@ public class ProductService {
         product.setSalePrice(request.salePrice());
         product.setStock(request.stock());
         product.setMinimumStock(request.minimumStock());
+        product.setBarcode(normalizeBarcode(request.barcode()));
         product.setActive(true);
 
         Product saved = productRepository.save(product);
@@ -99,7 +121,7 @@ public class ProductService {
     }
 
     public Product update(Long id, ProductRequest request) {
-        validateBusinessRules(request);
+        validateBusinessRules(request, id);
 
         Product product = getById(id);
         product.setName(request.name().trim());
@@ -110,6 +132,7 @@ public class ProductService {
         product.setSalePrice(request.salePrice());
         product.setStock(request.stock());
         product.setMinimumStock(request.minimumStock());
+        product.setBarcode(normalizeBarcode(request.barcode()));
 
         return productRepository.save(product);
     }
@@ -156,9 +179,21 @@ public class ProductService {
         return saved;
     }
 
-    private void validateBusinessRules(ProductRequest request) {
+    private void validateBusinessRules(ProductRequest request, Long productId) {
         if (request.salePrice() < request.costPrice()) {
             throw new BusinessException("Preço de venda não pode ser menor que o preço de custo");
+        }
+
+        String normalizedBarcode = normalizeBarcode(request.barcode());
+
+        if (normalizedBarcode != null) {
+            boolean barcodeExists = productId == null
+                    ? productRepository.existsByBarcode(normalizedBarcode)
+                    : productRepository.existsByBarcodeAndIdNot(normalizedBarcode, productId);
+
+            if (barcodeExists) {
+                throw new BusinessException("Já existe produto cadastrado com este código de barras");
+            }
         }
     }
 
@@ -188,6 +223,10 @@ public class ProductService {
     }
 
     private String normalizeBlank(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String normalizeBarcode(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }
 }

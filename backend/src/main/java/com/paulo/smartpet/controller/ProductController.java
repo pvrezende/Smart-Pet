@@ -34,6 +34,16 @@ public class ProductController {
         return productService.getById(id);
     }
 
+    @GetMapping("/barcode/{barcode}")
+    public Product getByBarcode(@PathVariable String barcode) {
+        return productService.getByBarcode(barcode);
+    }
+
+    @GetMapping("/barcode-search")
+    public List<Product> searchByBarcode(@RequestParam String barcode) {
+        return productService.searchByBarcode(barcode);
+    }
+
     @GetMapping("/{id}/movements")
     public List<StockMovementResponse> getMovements(@PathVariable Long id) {
         return productService.getMovementsByProduct(id);

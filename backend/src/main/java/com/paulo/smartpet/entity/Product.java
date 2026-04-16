@@ -14,6 +14,7 @@ public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String name;
     private String animalType;
     private String brand;
@@ -22,5 +23,9 @@ public class Product {
     private Double salePrice;
     private Integer stock;
     private Integer minimumStock;
+
+    @Column(unique = true, length = 100)
+    private String barcode;
+
     private Boolean active = true;
 }
