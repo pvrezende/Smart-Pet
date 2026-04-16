@@ -4,6 +4,7 @@ import com.paulo.smartpet.entity.Customer;
 import com.paulo.smartpet.entity.Product;
 import com.paulo.smartpet.repository.CustomerRepository;
 import com.paulo.smartpet.repository.ProductRepository;
+import com.paulo.smartpet.service.UserService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -17,7 +18,11 @@ public class SmartPetApplication {
     }
 
     @Bean
-    CommandLineRunner seedData(ProductRepository productRepository, CustomerRepository customerRepository) {
+    CommandLineRunner seedData(
+            ProductRepository productRepository,
+            CustomerRepository customerRepository,
+            UserService userService
+    ) {
         return args -> {
             if (productRepository.count() == 0) {
                 productRepository.save(new Product(null, "Royal Canin Adult", "cao", "Royal Canin", 15.0, 70.0, 89.90, 12, 5, true));
@@ -25,9 +30,12 @@ public class SmartPetApplication {
                 productRepository.save(new Product(null, "Pedigree Adulto Carne", "cao", "Pedigree", 20.0, 50.0, 65.00, 15, 5, true));
                 productRepository.save(new Product(null, "Golden Gatos Castrados", "gato", "Golden", 10.1, 60.0, 78.90, 6, 5, true));
             }
+
             if (customerRepository.count() == 0) {
                 customerRepository.save(new Customer(null, "Cliente Padrão", "00000000000", "27999999999", "cliente@exemplo.com", "", true));
             }
+
+            userService.ensureDefaultAdminExists();
         };
     }
 }
