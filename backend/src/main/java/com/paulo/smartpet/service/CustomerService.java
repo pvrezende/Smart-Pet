@@ -7,7 +7,11 @@ import com.paulo.smartpet.exception.ResourceNotFoundException;
 import com.paulo.smartpet.repository.CustomerRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class CustomerService {
@@ -17,8 +21,37 @@ public class CustomerService {
         this.customerRepository = customerRepository;
     }
 
-    public List<Customer> list() {
-        return customerRepository.findByActiveTrueOrderByNameAsc();
+    public List<Customer> list(Boolean active, String search) {
+        String normalizedSearch = normalizeBlank(search);
+
+        if (active != null && normalizedSearch == null) {
+            return customerRepository.findByActiveOrderByNameAsc(active);
+        }
+
+        if (normalizedSearch == null) {
+            return customerRepository.findByActiveTrueOrderByNameAsc();
+        }
+
+        String numericSearch = cleanNumber(normalizedSearch);
+
+        List<Customer> result = new ArrayList<>();
+        result.addAll(customerRepository.findByActiveTrueAndNameContainingIgnoreCaseOrderByNameAsc(normalizedSearch));
+        result.addAll(customerRepository.findByActiveTrueAndEmailContainingIgnoreCaseOrderByNameAsc(normalizedSearch));
+
+        if (!numericSearch.isBlank()) {
+            result.addAll(customerRepository.findByActiveTrueAndCpfContainingOrderByNameAsc(numericSearch));
+            result.addAll(customerRepository.findByActiveTrueAndPhoneContainingOrderByNameAsc(numericSearch));
+        }
+
+        Map<Long, Customer> unique = new LinkedHashMap<>();
+        for (Customer customer : result) {
+            unique.put(customer.getId(), customer);
+        }
+
+        return unique.values()
+                .stream()
+                .sorted(Comparator.comparing(Customer::getName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
     }
 
     public Customer getById(Long id) {
@@ -72,7 +105,7 @@ public class CustomerService {
     }
 
     private String cleanNumber(String value) {
-        return value == null ? null : value.replaceAll("\\D", "");
+        return value == null ? "" : value.replaceAll("\\D", "");
     }
 
     private String normalizeBlank(String value) {

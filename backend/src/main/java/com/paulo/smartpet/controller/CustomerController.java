@@ -19,8 +19,11 @@ public class CustomerController {
     }
 
     @GetMapping
-    public List<Customer> list() {
-        return customerService.list();
+    public List<Customer> list(
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) String search
+    ) {
+        return customerService.list(active, search);
     }
 
     @GetMapping("/{id}")
