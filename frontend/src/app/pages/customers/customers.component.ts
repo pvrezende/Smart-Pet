@@ -2,6 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { ApiService } from '../../core/services/api.service';
 import { Customer } from '../../models/customer.model';
 
+type CustomerFilter = 'all' | 'complete' | 'basic' | 'inactive';
+type CustomerSortOption = 'name' | 'recent';
+
 @Component({
   selector: 'app-customers-page',
   template: `
@@ -12,6 +15,11 @@ import { Customer } from '../../models/customer.model';
           <p>Cadastre, acompanhe e organize sua base de clientes do Smart Pet.</p>
         </div>
         <button type="button" class="ghost-btn" (click)="load()">Atualizar lista</button>
+      </div>
+
+      <div *ngIf="feedbackMessage" class="card customers-feedback" [class.customers-feedback-error]="feedbackType === 'error'">
+        <strong>{{ feedbackType === 'success' ? 'Sucesso:' : 'Atenção:' }}</strong>
+        <span>{{ feedbackMessage }}</span>
       </div>
 
       <div class="customers-layout">
@@ -108,6 +116,43 @@ import { Customer } from '../../models/customer.model';
           </div>
         </div>
 
+        <div class="customers-toolbar">
+          <div class="form-field">
+            <label for="customerSearch">Buscar</label>
+            <input
+              id="customerSearch"
+              [(ngModel)]="searchTerm"
+              name="customerSearch"
+              placeholder="Buscar por nome, CPF, telefone ou ID"
+            >
+          </div>
+
+          <div class="form-field">
+            <label for="customerFilter">Status</label>
+            <select id="customerFilter" [(ngModel)]="customerFilter" name="customerFilter">
+              <option value="all">Todos</option>
+              <option value="complete">Cadastro completo</option>
+              <option value="basic">Cadastro básico</option>
+              <option value="inactive">Inativo</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="customerSort">Ordenar por</label>
+            <select id="customerSort" [(ngModel)]="sortOption" name="customerSort">
+              <option value="name">Nome</option>
+              <option value="recent">Mais recente</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="customers-results-bar">
+          <span>{{ filteredCustomers.length }} cliente(s) encontrado(s)</span>
+          <button type="button" class="ghost-btn ghost-btn-sm" (click)="clearFilters()">
+            Limpar filtros
+          </button>
+        </div>
+
         <div class="table-responsive customers-table-responsive">
           <table>
             <thead>
@@ -121,7 +166,7 @@ import { Customer } from '../../models/customer.model';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let customer of customers">
+              <tr *ngFor="let customer of filteredCustomers">
                 <td>
                   <div class="table-customer-cell">
                     <strong>{{ customer.name }}</strong>
@@ -139,11 +184,11 @@ import { Customer } from '../../models/customer.model';
                 </td>
               </tr>
 
-              <tr *ngIf="!customers.length">
+              <tr *ngIf="!filteredCustomers.length">
                 <td colspan="6">
                   <div class="empty-table-state">
-                    <strong>Nenhum cliente cadastrado ainda.</strong>
-                    <p>Adicione o primeiro cliente usando o formulário acima.</p>
+                    <strong>Nenhum cliente encontrado com os filtros atuais.</strong>
+                    <p>Ajuste a busca ou limpe os filtros para visualizar os clientes.</p>
                   </div>
                 </td>
               </tr>
@@ -164,6 +209,13 @@ export class CustomersPageComponent implements OnInit {
     address: ''
   };
 
+  searchTerm = '';
+  customerFilter: CustomerFilter = 'all';
+  sortOption: CustomerSortOption = 'name';
+
+  feedbackMessage = '';
+  feedbackType: 'success' | 'error' = 'success';
+
   constructor(private api: ApiService) {}
 
   ngOnInit(): void {
@@ -175,16 +227,45 @@ export class CustomersPageComponent implements OnInit {
   }
 
   save(): void {
-    this.api.createCustomer(this.form).subscribe(() => {
-      this.form = {
-        name: '',
-        cpf: '',
-        phone: '',
-        email: '',
-        address: ''
-      };
-      this.load();
+    this.clearFeedback();
+
+    if (!this.form.name.trim()) {
+      this.setError('Informe o nome do cliente.');
+      return;
+    }
+
+    if (!this.form.phone.trim()) {
+      this.setError('Informe o telefone do cliente.');
+      return;
+    }
+
+    if (this.form.email?.trim() && !this.isValidEmail(this.form.email)) {
+      this.setError('Informe um e-mail válido.');
+      return;
+    }
+
+    this.api.createCustomer(this.form).subscribe({
+      next: () => {
+        this.form = {
+          name: '',
+          cpf: '',
+          phone: '',
+          email: '',
+          address: ''
+        };
+        this.load();
+        this.setSuccess('Cliente cadastrado com sucesso.');
+      },
+      error: () => {
+        this.setError('Não foi possível salvar o cliente.');
+      }
     });
+  }
+
+  clearFilters(): void {
+    this.searchTerm = '';
+    this.customerFilter = 'all';
+    this.sortOption = 'name';
   }
 
   get customersWithPhone(): number {
@@ -193,6 +274,37 @@ export class CustomersPageComponent implements OnInit {
 
   get customersWithEmail(): number {
     return this.customers.filter(customer => !!customer.email?.trim()).length;
+  }
+
+  get filteredCustomers(): Customer[] {
+    const normalizedSearch = this.searchTerm.trim().toLowerCase();
+
+    const filtered = this.customers.filter(customer => {
+      const matchesSearch =
+        !normalizedSearch ||
+        customer.name.toLowerCase().includes(normalizedSearch) ||
+        (customer.cpf || '').toLowerCase().includes(normalizedSearch) ||
+        (customer.phone || '').toLowerCase().includes(normalizedSearch) ||
+        String(customer.id || '').includes(normalizedSearch);
+
+      const matchesFilter =
+        this.customerFilter === 'all' ||
+        (this.customerFilter === 'inactive' && customer.active === false) ||
+        (this.customerFilter === 'complete' && customer.active !== false && !!customer.email?.trim()) ||
+        (this.customerFilter === 'basic' && customer.active !== false && !customer.email?.trim());
+
+      return matchesSearch && matchesFilter;
+    });
+
+    return filtered.sort((a, b) => {
+      switch (this.sortOption) {
+        case 'recent':
+          return Number(b.id || 0) - Number(a.id || 0);
+        case 'name':
+        default:
+          return a.name.localeCompare(b.name);
+      }
+    });
   }
 
   getCustomerBadgeClass(customer: Customer): string {
@@ -217,5 +329,23 @@ export class CustomersPageComponent implements OnInit {
     }
 
     return 'Cadastro básico';
+  }
+
+  private isValidEmail(email: string): boolean {
+    return /\S+@\S+\.\S+/.test(email.trim());
+  }
+
+  private setSuccess(message: string): void {
+    this.feedbackType = 'success';
+    this.feedbackMessage = message;
+  }
+
+  private setError(message: string): void {
+    this.feedbackType = 'error';
+    this.feedbackMessage = message;
+  }
+
+  private clearFeedback(): void {
+    this.feedbackMessage = '';
   }
 }

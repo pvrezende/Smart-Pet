@@ -1,6 +1,10 @@
 import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { Product } from '../../models/product.model';
+
+type StockFilter = 'all' | 'low' | 'out' | 'ok';
+type SortOption = 'name' | 'priceAsc' | 'priceDesc' | 'stockAsc' | 'stockDesc';
 
 @Component({
   selector: 'app-products-page',
@@ -12,6 +16,11 @@ import { Product } from '../../models/product.model';
           <p>Cadastre, acompanhe e ajuste o estoque dos produtos da loja.</p>
         </div>
         <button type="button" class="ghost-btn" (click)="load()">Atualizar lista</button>
+      </div>
+
+      <div *ngIf="feedbackMessage" class="card products-feedback" [class.products-feedback-error]="feedbackType === 'error'">
+        <strong>{{ feedbackType === 'success' ? 'Sucesso:' : 'Atenção:' }}</strong>
+        <span>{{ feedbackMessage }}</span>
       </div>
 
       <div class="products-layout">
@@ -151,6 +160,55 @@ import { Product } from '../../models/product.model';
           </div>
         </div>
 
+        <div class="products-toolbar">
+          <div class="form-field">
+            <label for="searchTerm">Buscar</label>
+            <input
+              id="searchTerm"
+              [(ngModel)]="searchTerm"
+              name="searchTerm"
+              placeholder="Buscar por nome, marca ou ID"
+            >
+          </div>
+
+          <div class="form-field">
+            <label for="animalFilter">Tipo</label>
+            <select id="animalFilter" [(ngModel)]="animalFilter" name="animalFilter">
+              <option value="all">Todos</option>
+              <option value="cao">Cão</option>
+              <option value="gato">Gato</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="stockFilter">Estoque</label>
+            <select id="stockFilter" [(ngModel)]="stockFilter" name="stockFilter">
+              <option value="all">Todos</option>
+              <option value="ok">Estoque ok</option>
+              <option value="low">Estoque baixo</option>
+              <option value="out">Sem estoque</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="sortOption">Ordenar por</label>
+            <select id="sortOption" [(ngModel)]="sortOption" name="sortOption">
+              <option value="name">Nome</option>
+              <option value="priceAsc">Preço crescente</option>
+              <option value="priceDesc">Preço decrescente</option>
+              <option value="stockAsc">Estoque crescente</option>
+              <option value="stockDesc">Estoque decrescente</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="products-results-bar">
+          <span>{{ filteredProducts.length }} produto(s) encontrado(s)</span>
+          <button type="button" class="ghost-btn ghost-btn-sm" (click)="clearFilters()">
+            Limpar filtros
+          </button>
+        </div>
+
         <div class="table-responsive">
           <table>
             <thead>
@@ -166,7 +224,7 @@ import { Product } from '../../models/product.model';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let product of products">
+              <tr *ngFor="let product of filteredProducts">
                 <td>
                   <div class="table-product-cell">
                     <strong>{{ product.name }}</strong>
@@ -183,10 +241,7 @@ import { Product } from '../../models/product.model';
                 <td>R$ {{ product.salePrice | number:'1.2-2' }}</td>
                 <td>{{ product.stock }}</td>
                 <td>
-                  <span
-                    class="badge"
-                    [ngClass]="getStockBadgeClass(product)"
-                  >
+                  <span class="badge" [ngClass]="getStockBadgeClass(product)">
                     {{ getStockStatusLabel(product) }}
                   </span>
                 </td>
@@ -199,6 +254,7 @@ import { Product } from '../../models/product.model';
                       type="button"
                       class="table-action-btn secondary"
                       (click)="stockOut(product)"
+                      [disabled]="product.stock <= 0"
                     >
                       -1
                     </button>
@@ -206,11 +262,11 @@ import { Product } from '../../models/product.model';
                 </td>
               </tr>
 
-              <tr *ngIf="!products.length">
+              <tr *ngIf="!filteredProducts.length">
                 <td colspan="8">
                   <div class="empty-table-state">
-                    <strong>Nenhum produto cadastrado ainda.</strong>
-                    <p>Adicione o primeiro item usando o formulário acima.</p>
+                    <strong>Nenhum produto encontrado com os filtros atuais.</strong>
+                    <p>Ajuste a busca ou limpe os filtros para visualizar os itens.</p>
                   </div>
                 </td>
               </tr>
@@ -234,9 +290,33 @@ export class ProductsPageComponent implements OnInit {
     minimumStock: 5
   };
 
-  constructor(private api: ApiService) {}
+  searchTerm = '';
+  animalFilter: 'all' | 'cao' | 'gato' = 'all';
+  stockFilter: StockFilter = 'all';
+  sortOption: SortOption = 'name';
+
+  feedbackMessage = '';
+  feedbackType: 'success' | 'error' = 'success';
+
+  constructor(
+    private api: ApiService,
+    private route: ActivatedRoute
+  ) {}
 
   ngOnInit(): void {
+    this.route.queryParams.subscribe(params => {
+      const stockFilterParam = params['stockFilter'];
+
+      if (
+        stockFilterParam === 'all' ||
+        stockFilterParam === 'low' ||
+        stockFilterParam === 'out' ||
+        stockFilterParam === 'ok'
+      ) {
+        this.stockFilter = stockFilterParam;
+      }
+    });
+
     this.load();
   }
 
@@ -245,27 +325,127 @@ export class ProductsPageComponent implements OnInit {
   }
 
   save(): void {
-    this.api.createProduct(this.form).subscribe(() => {
-      this.form = {
-        name: '',
-        animalType: 'cao',
-        brand: '',
-        weight: 1,
-        costPrice: 0,
-        salePrice: 0,
-        stock: 0,
-        minimumStock: 5
-      };
-      this.load();
+    this.clearFeedback();
+
+    if (!this.form.name.trim()) {
+      this.setError('Informe o nome do produto.');
+      return;
+    }
+
+    if (!this.form.brand.trim()) {
+      this.setError('Informe a marca do produto.');
+      return;
+    }
+
+    if (Number(this.form.salePrice) < Number(this.form.costPrice)) {
+      this.setError('O preço de venda não pode ser menor que o preço de custo.');
+      return;
+    }
+
+    this.api.createProduct(this.form).subscribe({
+      next: () => {
+        this.form = {
+          name: '',
+          animalType: 'cao',
+          brand: '',
+          weight: 1,
+          costPrice: 0,
+          salePrice: 0,
+          stock: 0,
+          minimumStock: 5
+        };
+        this.load();
+        this.setSuccess('Produto cadastrado com sucesso.');
+      },
+      error: () => {
+        this.setError('Não foi possível salvar o produto.');
+      }
     });
   }
 
   stockIn(product: Product): void {
-    this.api.stockIn(product.id!, 5).subscribe(() => this.load());
+    this.clearFeedback();
+    this.api.stockIn(product.id!, 5).subscribe({
+      next: () => {
+        this.load();
+        this.setSuccess(`Estoque de "${product.name}" atualizado com +5 unidades.`);
+      },
+      error: () => {
+        this.setError(`Não foi possível adicionar estoque ao produto "${product.name}".`);
+      }
+    });
   }
 
   stockOut(product: Product): void {
-    this.api.stockOut(product.id!, 1).subscribe(() => this.load());
+    this.clearFeedback();
+
+    if (Number(product.stock) <= 0) {
+      this.setError(`"${product.name}" já está sem estoque.`);
+      return;
+    }
+
+    this.api.stockOut(product.id!, 1).subscribe({
+      next: () => {
+        this.load();
+        this.setSuccess(`Estoque de "${product.name}" atualizado com -1 unidade.`);
+      },
+      error: () => {
+        this.setError(`Não foi possível retirar estoque do produto "${product.name}".`);
+      }
+    });
+  }
+
+  clearFilters(): void {
+    this.searchTerm = '';
+    this.animalFilter = 'all';
+    this.stockFilter = 'all';
+    this.sortOption = 'name';
+  }
+
+  get filteredProducts(): Product[] {
+    const normalizedSearch = this.searchTerm.trim().toLowerCase();
+
+    const filtered = this.products.filter(product => {
+      const matchesSearch =
+        !normalizedSearch ||
+        product.name.toLowerCase().includes(normalizedSearch) ||
+        product.brand.toLowerCase().includes(normalizedSearch) ||
+        String(product.id || '').includes(normalizedSearch);
+
+      const matchesAnimal =
+        this.animalFilter === 'all' || product.animalType === this.animalFilter;
+
+      const matchesStock =
+        this.stockFilter === 'all' ||
+        (this.stockFilter === 'out' && Number(product.stock) <= 0) ||
+        (
+          this.stockFilter === 'low' &&
+          Number(product.stock) > 0 &&
+          Number(product.stock) <= Number(product.minimumStock)
+        ) ||
+        (
+          this.stockFilter === 'ok' &&
+          Number(product.stock) > Number(product.minimumStock)
+        );
+
+      return matchesSearch && matchesAnimal && matchesStock;
+    });
+
+    return filtered.sort((a, b) => {
+      switch (this.sortOption) {
+        case 'priceAsc':
+          return Number(a.salePrice) - Number(b.salePrice);
+        case 'priceDesc':
+          return Number(b.salePrice) - Number(a.salePrice);
+        case 'stockAsc':
+          return Number(a.stock) - Number(b.stock);
+        case 'stockDesc':
+          return Number(b.stock) - Number(a.stock);
+        case 'name':
+        default:
+          return a.name.localeCompare(b.name);
+      }
+    });
   }
 
   get lowStockCount(): number {
@@ -301,5 +481,19 @@ export class ProductsPageComponent implements OnInit {
     }
 
     return 'Estoque ok';
+  }
+
+  private setSuccess(message: string): void {
+    this.feedbackType = 'success';
+    this.feedbackMessage = message;
+  }
+
+  private setError(message: string): void {
+    this.feedbackType = 'error';
+    this.feedbackMessage = message;
+  }
+
+  private clearFeedback(): void {
+    this.feedbackMessage = '';
   }
 }
