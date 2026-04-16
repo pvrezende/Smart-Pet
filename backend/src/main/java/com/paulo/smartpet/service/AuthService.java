@@ -5,6 +5,7 @@ import com.paulo.smartpet.dto.LoginResponse;
 import com.paulo.smartpet.entity.User;
 import com.paulo.smartpet.exception.BusinessException;
 import com.paulo.smartpet.repository.UserRepository;
+import com.paulo.smartpet.security.JwtService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -13,13 +14,16 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     public AuthService(
             UserRepository userRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -38,12 +42,15 @@ public class AuthService {
             throw new BusinessException("Usuário ou senha inválidos");
         }
 
+        String token = jwtService.generateToken(user.getUsername());
+
         return new LoginResponse(
                 user.getId(),
                 user.getName(),
                 user.getUsername(),
                 user.getRole(),
                 user.getActive(),
+                token,
                 "Login realizado com sucesso"
         );
     }

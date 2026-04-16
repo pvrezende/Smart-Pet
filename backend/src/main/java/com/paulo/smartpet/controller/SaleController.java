@@ -3,6 +3,7 @@ package com.paulo.smartpet.controller;
 import com.paulo.smartpet.dto.CreateSaleRequest;
 import com.paulo.smartpet.dto.SaleDetailsResponse;
 import com.paulo.smartpet.dto.SaleResponse;
+import com.paulo.smartpet.dto.SalesHistorySummaryResponse;
 import com.paulo.smartpet.service.SaleService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -28,6 +29,16 @@ public class SaleController {
             @RequestParam(required = false) LocalDate endDate
     ) {
         return saleService.list(customerId, status, startDate, endDate);
+    }
+
+    @GetMapping("/history-summary")
+    public SalesHistorySummaryResponse historySummary(
+            @RequestParam(required = false) Long customerId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate
+    ) {
+        return saleService.getHistorySummary(customerId, status, startDate, endDate);
     }
 
     @GetMapping("/{id}")

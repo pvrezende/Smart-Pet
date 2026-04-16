@@ -6,6 +6,7 @@ import com.paulo.smartpet.dto.SaleDetailsResponse;
 import com.paulo.smartpet.dto.SaleItemRequest;
 import com.paulo.smartpet.dto.SaleItemResponse;
 import com.paulo.smartpet.dto.SaleResponse;
+import com.paulo.smartpet.dto.SalesHistorySummaryResponse;
 import com.paulo.smartpet.entity.Customer;
 import com.paulo.smartpet.entity.Product;
 import com.paulo.smartpet.entity.Sale;
@@ -46,36 +47,51 @@ public class SaleService {
     }
 
     public List<SaleResponse> list(Long customerId, String status, LocalDate startDate, LocalDate endDate) {
-        String normalizedStatus = normalizeStatus(status);
-
-        if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
-            throw new BusinessException("Data final não pode ser menor que a data inicial");
-        }
-
-        LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
-        LocalDateTime end = endDate != null ? endDate.atTime(LocalTime.MAX) : null;
-
-        List<Sale> sales;
-
-        if (customerId != null && start != null && end != null && normalizedStatus != null) {
-            sales = saleRepository.findByCustomerIdAndSaleDateBetweenAndStatusOrderBySaleDateDesc(customerId, start, end, normalizedStatus);
-        } else if (customerId != null && start != null && end != null) {
-            sales = saleRepository.findByCustomerIdAndSaleDateBetweenOrderBySaleDateDesc(customerId, start, end);
-        } else if (start != null && end != null && normalizedStatus != null) {
-            sales = saleRepository.findBySaleDateBetweenAndStatusOrderBySaleDateDesc(start, end, normalizedStatus);
-        } else if (start != null && end != null) {
-            sales = saleRepository.findBySaleDateBetweenOrderBySaleDateDesc(start, end);
-        } else if (customerId != null && normalizedStatus != null) {
-            sales = saleRepository.findByCustomerIdAndStatusOrderBySaleDateDesc(customerId, normalizedStatus);
-        } else if (customerId != null) {
-            sales = saleRepository.findByCustomerIdOrderBySaleDateDesc(customerId);
-        } else if (normalizedStatus != null) {
-            sales = saleRepository.findByStatusOrderBySaleDateDesc(normalizedStatus);
-        } else {
-            sales = saleRepository.findAllByOrderBySaleDateDesc();
-        }
-
+        List<Sale> sales = findSales(customerId, status, startDate, endDate);
         return sales.stream().map(this::toResponse).toList();
+    }
+
+    public SalesHistorySummaryResponse getHistorySummary(Long customerId, String status, LocalDate startDate, LocalDate endDate) {
+        List<Sale> sales = findSales(customerId, status, startDate, endDate);
+
+        long salesCount = sales.size();
+        long itemsCount = sales.stream()
+                .flatMap(sale -> sale.getItems().stream())
+                .mapToLong(item -> item.getQuantity() == null ? 0 : item.getQuantity())
+                .sum();
+
+        BigDecimal grossAmount = sales.stream()
+                .filter(sale -> !"CANCELADA".equalsIgnoreCase(sale.getStatus()))
+                .map(sale -> sale.getTotalAmount() == null ? BigDecimal.ZERO : sale.getTotalAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal discountAmount = sales.stream()
+                .filter(sale -> !"CANCELADA".equalsIgnoreCase(sale.getStatus()))
+                .map(sale -> sale.getDiscount() == null ? BigDecimal.ZERO : sale.getDiscount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal netAmount = sales.stream()
+                .filter(sale -> !"CANCELADA".equalsIgnoreCase(sale.getStatus()))
+                .map(sale -> sale.getFinalAmount() == null ? BigDecimal.ZERO : sale.getFinalAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        long completedSales = sales.stream()
+                .filter(sale -> "CONCLUIDA".equalsIgnoreCase(sale.getStatus()))
+                .count();
+
+        long canceledSales = sales.stream()
+                .filter(sale -> "CANCELADA".equalsIgnoreCase(sale.getStatus()))
+                .count();
+
+        return new SalesHistorySummaryResponse(
+                salesCount,
+                itemsCount,
+                grossAmount,
+                discountAmount,
+                netAmount,
+                completedSales,
+                canceledSales
+        );
     }
 
     public SaleDetailsResponse getById(Long id) {
@@ -180,6 +196,35 @@ public class SaleService {
         sale.setStatus("CANCELADA");
         Sale saved = saleRepository.save(sale);
         return toDetailsResponse(saved);
+    }
+
+    private List<Sale> findSales(Long customerId, String status, LocalDate startDate, LocalDate endDate) {
+        String normalizedStatus = normalizeStatus(status);
+
+        if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
+            throw new BusinessException("Data final não pode ser menor que a data inicial");
+        }
+
+        LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
+        LocalDateTime end = endDate != null ? endDate.atTime(LocalTime.MAX) : null;
+
+        if (customerId != null && start != null && end != null && normalizedStatus != null) {
+            return saleRepository.findByCustomerIdAndSaleDateBetweenAndStatusOrderBySaleDateDesc(customerId, start, end, normalizedStatus);
+        } else if (customerId != null && start != null && end != null) {
+            return saleRepository.findByCustomerIdAndSaleDateBetweenOrderBySaleDateDesc(customerId, start, end);
+        } else if (start != null && end != null && normalizedStatus != null) {
+            return saleRepository.findBySaleDateBetweenAndStatusOrderBySaleDateDesc(start, end, normalizedStatus);
+        } else if (start != null && end != null) {
+            return saleRepository.findBySaleDateBetweenOrderBySaleDateDesc(start, end);
+        } else if (customerId != null && normalizedStatus != null) {
+            return saleRepository.findByCustomerIdAndStatusOrderBySaleDateDesc(customerId, normalizedStatus);
+        } else if (customerId != null) {
+            return saleRepository.findByCustomerIdOrderBySaleDateDesc(customerId);
+        } else if (normalizedStatus != null) {
+            return saleRepository.findByStatusOrderBySaleDateDesc(normalizedStatus);
+        } else {
+            return saleRepository.findAllByOrderBySaleDateDesc();
+        }
     }
 
     private SaleResponse toResponse(Sale sale) {
