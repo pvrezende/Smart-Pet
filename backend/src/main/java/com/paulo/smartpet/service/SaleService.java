@@ -17,6 +17,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -38,8 +41,50 @@ public class SaleService {
         this.stockMovementRepository = stockMovementRepository;
     }
 
-    public List<Sale> list() {
-        return saleRepository.findAll();
+    public List<Sale> list(Long customerId, String status, LocalDate startDate, LocalDate endDate) {
+        String normalizedStatus = normalizeStatus(status);
+
+        if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
+            throw new BusinessException("Data final não pode ser menor que a data inicial");
+        }
+
+        LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
+        LocalDateTime end = endDate != null ? endDate.atTime(LocalTime.MAX) : null;
+
+        if (customerId != null && start != null && end != null && normalizedStatus != null) {
+            return saleRepository.findByCustomerIdAndSaleDateBetweenAndStatusOrderBySaleDateDesc(customerId, start, end, normalizedStatus);
+        }
+
+        if (customerId != null && start != null && end != null) {
+            return saleRepository.findByCustomerIdAndSaleDateBetweenOrderBySaleDateDesc(customerId, start, end);
+        }
+
+        if (start != null && end != null && normalizedStatus != null) {
+            return saleRepository.findBySaleDateBetweenAndStatusOrderBySaleDateDesc(start, end, normalizedStatus);
+        }
+
+        if (start != null && end != null) {
+            return saleRepository.findBySaleDateBetweenOrderBySaleDateDesc(start, end);
+        }
+
+        if (customerId != null && normalizedStatus != null) {
+            return saleRepository.findByCustomerIdAndStatusOrderBySaleDateDesc(customerId, normalizedStatus);
+        }
+
+        if (customerId != null) {
+            return saleRepository.findByCustomerIdOrderBySaleDateDesc(customerId);
+        }
+
+        if (normalizedStatus != null) {
+            return saleRepository.findByStatusOrderBySaleDateDesc(normalizedStatus);
+        }
+
+        return saleRepository.findAllByOrderBySaleDateDesc();
+    }
+
+    public Sale getById(Long id) {
+        return saleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada"));
     }
 
     @Transactional
@@ -110,8 +155,7 @@ public class SaleService {
 
     @Transactional
     public Sale cancel(Long id) {
-        Sale sale = saleRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada"));
+        Sale sale = getById(id);
 
         if ("CANCELADA".equalsIgnoreCase(sale.getStatus())) {
             return sale;
@@ -139,5 +183,9 @@ public class SaleService {
 
     private String normalizeBlank(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String normalizeStatus(String value) {
+        return value == null || value.isBlank() ? null : value.trim().toUpperCase();
     }
 }

@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -19,8 +20,18 @@ public class SaleController {
     }
 
     @GetMapping
-    public List<Sale> list() {
-        return saleService.list();
+    public List<Sale> list(
+            @RequestParam(required = false) Long customerId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate
+    ) {
+        return saleService.list(customerId, status, startDate, endDate);
+    }
+
+    @GetMapping("/{id}")
+    public Sale getById(@PathVariable Long id) {
+        return saleService.getById(id);
     }
 
     @PostMapping
