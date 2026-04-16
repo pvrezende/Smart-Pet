@@ -2,6 +2,7 @@ package com.paulo.smartpet.controller;
 
 import com.paulo.smartpet.dto.ProductRequest;
 import com.paulo.smartpet.dto.StockAdjustmentRequest;
+import com.paulo.smartpet.dto.StockMovementResponse;
 import com.paulo.smartpet.entity.Product;
 import com.paulo.smartpet.service.ProductService;
 import jakarta.validation.Valid;
@@ -20,13 +21,22 @@ public class ProductController {
     }
 
     @GetMapping
-    public List<Product> list(@RequestParam(required = false) String animalType) {
-        return productService.list(animalType);
+    public List<Product> list(
+            @RequestParam(required = false) String animalType,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) String search
+    ) {
+        return productService.list(animalType, active, search);
     }
 
     @GetMapping("/{id}")
     public Product get(@PathVariable Long id) {
         return productService.getById(id);
+    }
+
+    @GetMapping("/{id}/movements")
+    public List<StockMovementResponse> getMovements(@PathVariable Long id) {
+        return productService.getMovementsByProduct(id);
     }
 
     @PostMapping

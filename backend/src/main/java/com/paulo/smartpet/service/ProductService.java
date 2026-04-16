@@ -1,6 +1,7 @@
 package com.paulo.smartpet.service;
 
 import com.paulo.smartpet.dto.ProductRequest;
+import com.paulo.smartpet.dto.StockMovementResponse;
 import com.paulo.smartpet.entity.Product;
 import com.paulo.smartpet.entity.StockMovement;
 import com.paulo.smartpet.exception.BusinessException;
@@ -22,16 +23,55 @@ public class ProductService {
         this.stockMovementRepository = stockMovementRepository;
     }
 
-    public List<Product> list(String animalType) {
-        if (animalType == null || animalType.isBlank()) {
+    public List<Product> list(String animalType, Boolean active, String search) {
+        String normalizedAnimalType = normalizeBlank(animalType);
+        String normalizedSearch = normalizeBlank(search);
+
+        if (active == null) {
+            if (normalizedSearch != null) {
+                if (normalizedAnimalType != null) {
+                    return productRepository
+                            .findByActiveTrueAndAnimalTypeAndNameContainingIgnoreCaseOrActiveTrueAndAnimalTypeAndBrandContainingIgnoreCaseOrderByNameAsc(
+                                    normalizedAnimalType.toLowerCase(),
+                                    normalizedSearch,
+                                    normalizedAnimalType.toLowerCase(),
+                                    normalizedSearch
+                            );
+                }
+
+                return productRepository
+                        .findByActiveTrueAndNameContainingIgnoreCaseOrActiveTrueAndBrandContainingIgnoreCaseOrderByNameAsc(
+                                normalizedSearch,
+                                normalizedSearch
+                        );
+            }
+
+            if (normalizedAnimalType != null) {
+                return productRepository.findByActiveTrueAndAnimalTypeOrderByNameAsc(normalizedAnimalType.toLowerCase());
+            }
+
             return productRepository.findByActiveTrueOrderByNameAsc();
         }
-        return productRepository.findByActiveTrueAndAnimalTypeOrderByNameAsc(animalType);
+
+        if (normalizedAnimalType != null) {
+            return productRepository.findByActiveAndAnimalTypeOrderByNameAsc(active, normalizedAnimalType.toLowerCase());
+        }
+
+        return productRepository.findByActiveOrderByNameAsc(active);
     }
 
     public Product getById(Long id) {
         return productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
+    }
+
+    public List<StockMovementResponse> getMovementsByProduct(Long productId) {
+        getById(productId);
+
+        return stockMovementRepository.findByProductIdOrderByMovementDateDesc(productId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     public Product create(ProductRequest request) {
@@ -131,5 +171,23 @@ public class ProductService {
         movement.setCurrentStock(current);
         movement.setObservation(observation);
         stockMovementRepository.save(movement);
+    }
+
+    private StockMovementResponse toResponse(StockMovement movement) {
+        return new StockMovementResponse(
+                movement.getId(),
+                movement.getProduct() != null ? movement.getProduct().getId() : null,
+                movement.getProduct() != null ? movement.getProduct().getName() : null,
+                movement.getMovementType(),
+                movement.getQuantity(),
+                movement.getPreviousStock(),
+                movement.getCurrentStock(),
+                movement.getObservation(),
+                movement.getMovementDate()
+        );
+    }
+
+    private String normalizeBlank(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }
