@@ -40,4 +40,21 @@ public class ReportController {
                 .headers(headers)
                 .body(pdf);
     }
+
+    @GetMapping("/sales/{saleId}/receipt/pdf")
+    public ResponseEntity<byte[]> generateSaleReceiptPdf(@PathVariable Long saleId) {
+        byte[] pdf = reportService.generateSaleReceiptPdf(saleId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(
+                ContentDisposition.attachment()
+                        .filename("comprovante-venda-" + saleId + ".pdf")
+                        .build()
+        );
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdf);
+    }
 }

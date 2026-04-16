@@ -4,6 +4,7 @@ import com.paulo.smartpet.entity.Customer;
 import com.paulo.smartpet.entity.Product;
 import com.paulo.smartpet.repository.CustomerRepository;
 import com.paulo.smartpet.repository.ProductRepository;
+import com.paulo.smartpet.service.CompanySettingsService;
 import com.paulo.smartpet.service.UserService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -21,7 +22,8 @@ public class SmartPetApplication {
     CommandLineRunner seedData(
             ProductRepository productRepository,
             CustomerRepository customerRepository,
-            UserService userService
+            UserService userService,
+            CompanySettingsService companySettingsService
     ) {
         return args -> {
             if (productRepository.count() == 0) {
@@ -36,6 +38,7 @@ public class SmartPetApplication {
             }
 
             userService.ensureDefaultAdminExists();
+            companySettingsService.ensureDefaultExists();
         };
     }
 }
