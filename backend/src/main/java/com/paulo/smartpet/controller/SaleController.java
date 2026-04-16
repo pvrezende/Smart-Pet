@@ -23,22 +23,24 @@ public class SaleController {
 
     @GetMapping
     public List<SaleResponse> list(
+            @RequestParam(required = false) Long storeId,
             @RequestParam(required = false) Long customerId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate
     ) {
-        return saleService.list(customerId, status, startDate, endDate);
+        return saleService.list(storeId, customerId, status, startDate, endDate);
     }
 
     @GetMapping("/history-summary")
     public SalesHistorySummaryResponse historySummary(
+            @RequestParam(required = false) Long storeId,
             @RequestParam(required = false) Long customerId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate
     ) {
-        return saleService.getHistorySummary(customerId, status, startDate, endDate);
+        return saleService.getHistorySummary(storeId, customerId, status, startDate, endDate);
     }
 
     @GetMapping("/{id}")

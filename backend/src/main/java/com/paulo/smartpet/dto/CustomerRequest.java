@@ -24,6 +24,8 @@ public record CustomerRequest(
         String email,
 
         @Size(max = 255, message = "Endereço deve ter no máximo 255 caracteres")
-        String address
+        String address,
+
+        Long storeId
 ) {
 }

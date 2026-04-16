@@ -4,6 +4,7 @@ import com.paulo.smartpet.dto.DashboardResponse;
 import com.paulo.smartpet.service.DashboardService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -16,7 +17,7 @@ public class DashboardController {
     }
 
     @GetMapping
-    public DashboardResponse getDashboard() {
-        return dashboardService.getDashboard();
+    public DashboardResponse getDashboard(@RequestParam(required = false) Long storeId) {
+        return dashboardService.getDashboard(storeId);
     }
 }

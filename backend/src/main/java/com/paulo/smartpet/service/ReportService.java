@@ -46,8 +46,8 @@ public class ReportService {
     }
 
     public byte[] generateSalesReportPdf(Long customerId, String status, LocalDate startDate, LocalDate endDate) {
-        List<SaleResponse> sales = saleService.list(customerId, status, startDate, endDate);
-        SalesHistorySummaryResponse summary = saleService.getHistorySummary(customerId, status, startDate, endDate);
+        List<SaleResponse> sales = saleService.list(null, customerId, status, startDate, endDate);
+SalesHistorySummaryResponse summary = saleService.getHistorySummary(null, customerId, status, startDate, endDate);
         CompanySettings company = companySettingsService.getCurrentEntity();
 
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {

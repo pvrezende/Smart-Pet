@@ -1,9 +1,7 @@
 package com.paulo.smartpet.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
@@ -13,9 +11,6 @@ import java.util.List;
 
 @Entity
 @Table(name = "sales")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class Sale {
 
     @Id
@@ -29,6 +24,7 @@ public class Sale {
     @JoinColumn(name = "customer_id")
     private Customer customer;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id")
     private Store store;
@@ -43,4 +39,111 @@ public class Sale {
 
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SaleItem> items = new ArrayList<>();
+
+    public Sale() {
+    }
+
+    public Sale(Long id, LocalDateTime saleDate, Customer customer, Store store, BigDecimal totalAmount,
+                BigDecimal discount, BigDecimal finalAmount, String paymentMethod, String status,
+                String notes, List<SaleItem> items) {
+        this.id = id;
+        this.saleDate = saleDate;
+        this.customer = customer;
+        this.store = store;
+        this.totalAmount = totalAmount;
+        this.discount = discount;
+        this.finalAmount = finalAmount;
+        this.paymentMethod = paymentMethod;
+        this.status = status;
+        this.notes = notes;
+        this.items = items;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public LocalDateTime getSaleDate() {
+        return saleDate;
+    }
+
+    public Customer getCustomer() {
+        return customer;
+    }
+
+    public Store getStore() {
+        return store;
+    }
+
+    public BigDecimal getTotalAmount() {
+        return totalAmount;
+    }
+
+    public BigDecimal getDiscount() {
+        return discount;
+    }
+
+    public BigDecimal getFinalAmount() {
+        return finalAmount;
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public List<SaleItem> getItems() {
+        return items;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setSaleDate(LocalDateTime saleDate) {
+        this.saleDate = saleDate;
+    }
+
+    public void setCustomer(Customer customer) {
+        this.customer = customer;
+    }
+
+    public void setStore(Store store) {
+        this.store = store;
+    }
+
+    public void setTotalAmount(BigDecimal totalAmount) {
+        this.totalAmount = totalAmount;
+    }
+
+    public void setDiscount(BigDecimal discount) {
+        this.discount = discount;
+    }
+
+    public void setFinalAmount(BigDecimal finalAmount) {
+        this.finalAmount = finalAmount;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
+
+    public void setItems(List<SaleItem> items) {
+        this.items = items;
+    }
 }

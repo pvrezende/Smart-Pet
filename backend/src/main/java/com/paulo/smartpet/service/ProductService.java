@@ -4,6 +4,7 @@ import com.paulo.smartpet.dto.ProductRequest;
 import com.paulo.smartpet.dto.StockMovementResponse;
 import com.paulo.smartpet.entity.Product;
 import com.paulo.smartpet.entity.StockMovement;
+import com.paulo.smartpet.entity.Store;
 import com.paulo.smartpet.exception.BusinessException;
 import com.paulo.smartpet.exception.ResourceNotFoundException;
 import com.paulo.smartpet.repository.ProductRepository;
@@ -17,13 +18,20 @@ import java.util.List;
 public class ProductService {
     private final ProductRepository productRepository;
     private final StockMovementRepository stockMovementRepository;
+    private final StoreService storeService;
 
-    public ProductService(ProductRepository productRepository, StockMovementRepository stockMovementRepository) {
+    public ProductService(
+            ProductRepository productRepository,
+            StockMovementRepository stockMovementRepository,
+            StoreService storeService
+    ) {
         this.productRepository = productRepository;
         this.stockMovementRepository = stockMovementRepository;
+        this.storeService = storeService;
     }
 
-    public List<Product> list(String animalType, Boolean active, String search) {
+    public List<Product> list(Long storeId, String animalType, Boolean active, String search) {
+        Store store = storeService.resolveStore(storeId);
         String normalizedAnimalType = normalizeBlank(animalType);
         String normalizedSearch = normalizeBlank(search);
 
@@ -31,33 +39,37 @@ public class ProductService {
             if (normalizedSearch != null) {
                 if (normalizedAnimalType != null) {
                     return productRepository
-                            .findByActiveTrueAndAnimalTypeAndNameContainingIgnoreCaseOrActiveTrueAndAnimalTypeAndBrandContainingIgnoreCaseOrderByNameAsc(
+                            .findByStoreIdAndActiveTrueAndAnimalTypeAndNameContainingIgnoreCaseOrStoreIdAndActiveTrueAndAnimalTypeAndBrandContainingIgnoreCaseOrderByNameAsc(
+                                    store.getId(),
                                     normalizedAnimalType.toLowerCase(),
                                     normalizedSearch,
+                                    store.getId(),
                                     normalizedAnimalType.toLowerCase(),
                                     normalizedSearch
                             );
                 }
 
                 return productRepository
-                        .findByActiveTrueAndNameContainingIgnoreCaseOrActiveTrueAndBrandContainingIgnoreCaseOrderByNameAsc(
+                        .findByStoreIdAndActiveTrueAndNameContainingIgnoreCaseOrStoreIdAndActiveTrueAndBrandContainingIgnoreCaseOrderByNameAsc(
+                                store.getId(),
                                 normalizedSearch,
+                                store.getId(),
                                 normalizedSearch
                         );
             }
 
             if (normalizedAnimalType != null) {
-                return productRepository.findByActiveTrueAndAnimalTypeOrderByNameAsc(normalizedAnimalType.toLowerCase());
+                return productRepository.findByStoreIdAndActiveTrueAndAnimalTypeOrderByNameAsc(store.getId(), normalizedAnimalType.toLowerCase());
             }
 
-            return productRepository.findByActiveTrueOrderByNameAsc();
+            return productRepository.findByStoreIdAndActiveTrueOrderByNameAsc(store.getId());
         }
 
         if (normalizedAnimalType != null) {
-            return productRepository.findByActiveAndAnimalTypeOrderByNameAsc(active, normalizedAnimalType.toLowerCase());
+            return productRepository.findByStoreIdAndActiveAndAnimalTypeOrderByNameAsc(store.getId(), active, normalizedAnimalType.toLowerCase());
         }
 
-        return productRepository.findByActiveOrderByNameAsc(active);
+        return productRepository.findByStoreIdAndActiveOrderByNameAsc(store.getId(), active);
     }
 
     public Product getById(Long id) {
@@ -65,25 +77,27 @@ public class ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
     }
 
-    public Product getByBarcode(String barcode) {
+    public Product getByBarcode(Long storeId, String barcode) {
+        Store store = storeService.resolveStore(storeId);
         String normalizedBarcode = normalizeBarcode(barcode);
 
         if (normalizedBarcode == null) {
             throw new BusinessException("Código de barras é obrigatório");
         }
 
-        return productRepository.findByBarcode(normalizedBarcode)
+        return productRepository.findByStoreIdAndBarcode(store.getId(), normalizedBarcode)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado para o código de barras informado"));
     }
 
-    public List<Product> searchByBarcode(String barcode) {
+    public List<Product> searchByBarcode(Long storeId, String barcode) {
+        Store store = storeService.resolveStore(storeId);
         String normalizedBarcode = normalizeBarcode(barcode);
 
         if (normalizedBarcode == null) {
             throw new BusinessException("Código de barras é obrigatório");
         }
 
-        return productRepository.findByBarcodeContainingIgnoreCaseOrderByNameAsc(normalizedBarcode);
+        return productRepository.findByStoreIdAndBarcodeContainingIgnoreCaseOrderByNameAsc(store.getId(), normalizedBarcode);
     }
 
     public List<StockMovementResponse> getMovementsByProduct(Long productId) {
@@ -96,7 +110,8 @@ public class ProductService {
     }
 
     public Product create(ProductRequest request) {
-        validateBusinessRules(request, null);
+        Store store = storeService.resolveStore(request.storeId());
+        validateBusinessRules(request, null, store.getId());
 
         Product product = new Product();
         product.setId(null);
@@ -109,6 +124,7 @@ public class ProductService {
         product.setStock(request.stock());
         product.setMinimumStock(request.minimumStock());
         product.setBarcode(normalizeBarcode(request.barcode()));
+        product.setStore(store);
         product.setActive(true);
 
         Product saved = productRepository.save(product);
@@ -121,9 +137,12 @@ public class ProductService {
     }
 
     public Product update(Long id, ProductRequest request) {
-        validateBusinessRules(request, id);
-
         Product product = getById(id);
+        Long effectiveStoreId = request.storeId() != null ? request.storeId() : (product.getStore() != null ? product.getStore().getId() : null);
+        Store store = storeService.resolveStore(effectiveStoreId);
+
+        validateBusinessRules(request, id, store.getId());
+
         product.setName(request.name().trim());
         product.setAnimalType(request.animalType().trim().toLowerCase());
         product.setBrand(request.brand().trim());
@@ -133,6 +152,7 @@ public class ProductService {
         product.setStock(request.stock());
         product.setMinimumStock(request.minimumStock());
         product.setBarcode(normalizeBarcode(request.barcode()));
+        product.setStore(store);
 
         return productRepository.save(product);
     }
@@ -179,7 +199,7 @@ public class ProductService {
         return saved;
     }
 
-    private void validateBusinessRules(ProductRequest request, Long productId) {
+    private void validateBusinessRules(ProductRequest request, Long productId, Long storeId) {
         if (request.salePrice() < request.costPrice()) {
             throw new BusinessException("Preço de venda não pode ser menor que o preço de custo");
         }
@@ -188,11 +208,11 @@ public class ProductService {
 
         if (normalizedBarcode != null) {
             boolean barcodeExists = productId == null
-                    ? productRepository.existsByBarcode(normalizedBarcode)
-                    : productRepository.existsByBarcodeAndIdNot(normalizedBarcode, productId);
+                    ? productRepository.existsByStoreIdAndBarcode(storeId, normalizedBarcode)
+                    : productRepository.existsByStoreIdAndBarcodeAndIdNot(storeId, normalizedBarcode, productId);
 
             if (barcodeExists) {
-                throw new BusinessException("Já existe produto cadastrado com este código de barras");
+                throw new BusinessException("Já existe produto cadastrado com este código de barras nesta loja");
             }
         }
     }

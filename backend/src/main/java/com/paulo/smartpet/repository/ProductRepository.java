@@ -8,31 +8,35 @@ import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-    List<Product> findByActiveTrueOrderByNameAsc();
+    List<Product> findByStoreIdAndActiveTrueOrderByNameAsc(Long storeId);
 
-    List<Product> findByActiveTrueAndAnimalTypeOrderByNameAsc(String animalType);
+    List<Product> findByStoreIdAndActiveTrueAndAnimalTypeOrderByNameAsc(Long storeId, String animalType);
 
-    List<Product> findByActiveOrderByNameAsc(Boolean active);
+    List<Product> findByStoreIdAndActiveOrderByNameAsc(Long storeId, Boolean active);
 
-    List<Product> findByActiveAndAnimalTypeOrderByNameAsc(Boolean active, String animalType);
+    List<Product> findByStoreIdAndActiveAndAnimalTypeOrderByNameAsc(Long storeId, Boolean active, String animalType);
 
-    List<Product> findByActiveTrueAndNameContainingIgnoreCaseOrActiveTrueAndBrandContainingIgnoreCaseOrderByNameAsc(
+    List<Product> findByStoreIdAndActiveTrueAndNameContainingIgnoreCaseOrStoreIdAndActiveTrueAndBrandContainingIgnoreCaseOrderByNameAsc(
+            Long storeId1,
             String name,
+            Long storeId2,
             String brand
     );
 
-    List<Product> findByActiveTrueAndAnimalTypeAndNameContainingIgnoreCaseOrActiveTrueAndAnimalTypeAndBrandContainingIgnoreCaseOrderByNameAsc(
+    List<Product> findByStoreIdAndActiveTrueAndAnimalTypeAndNameContainingIgnoreCaseOrStoreIdAndActiveTrueAndAnimalTypeAndBrandContainingIgnoreCaseOrderByNameAsc(
+            Long storeId1,
             String animalType1,
             String name,
+            Long storeId2,
             String animalType2,
             String brand
     );
 
-    Optional<Product> findByBarcode(String barcode);
+    Optional<Product> findByStoreIdAndBarcode(Long storeId, String barcode);
 
-    boolean existsByBarcode(String barcode);
+    boolean existsByStoreIdAndBarcode(Long storeId, String barcode);
 
-    boolean existsByBarcodeAndIdNot(String barcode, Long id);
+    boolean existsByStoreIdAndBarcodeAndIdNot(Long storeId, String barcode, Long id);
 
-    List<Product> findByBarcodeContainingIgnoreCaseOrderByNameAsc(String barcode);
+    List<Product> findByStoreIdAndBarcodeContainingIgnoreCaseOrderByNameAsc(Long storeId, String barcode);
 }

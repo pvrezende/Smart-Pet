@@ -8,21 +8,21 @@ import java.util.Optional;
 
 public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
-    List<Customer> findByActiveTrueOrderByNameAsc();
+    List<Customer> findByStoreIdAndActiveTrueOrderByNameAsc(Long storeId);
 
-    Optional<Customer> findByCpf(String cpf);
+    List<Customer> findByStoreIdAndActiveOrderByNameAsc(Long storeId, Boolean active);
 
-    boolean existsByCpf(String cpf);
+    Optional<Customer> findByStoreIdAndCpf(Long storeId, String cpf);
 
-    boolean existsByCpfAndIdNot(String cpf, Long id);
+    boolean existsByStoreIdAndCpf(Long storeId, String cpf);
 
-    List<Customer> findByActiveOrderByNameAsc(Boolean active);
+    boolean existsByStoreIdAndCpfAndIdNot(Long storeId, String cpf, Long id);
 
-    List<Customer> findByActiveTrueAndNameContainingIgnoreCaseOrderByNameAsc(String name);
+    List<Customer> findByStoreIdAndActiveTrueAndNameContainingIgnoreCaseOrderByNameAsc(Long storeId, String name);
 
-    List<Customer> findByActiveTrueAndCpfContainingOrderByNameAsc(String cpf);
+    List<Customer> findByStoreIdAndActiveTrueAndCpfContainingOrderByNameAsc(Long storeId, String cpf);
 
-    List<Customer> findByActiveTrueAndPhoneContainingOrderByNameAsc(String phone);
+    List<Customer> findByStoreIdAndActiveTrueAndPhoneContainingOrderByNameAsc(Long storeId, String phone);
 
-    List<Customer> findByActiveTrueAndEmailContainingIgnoreCaseOrderByNameAsc(String email);
+    List<Customer> findByStoreIdAndActiveTrueAndEmailContainingIgnoreCaseOrderByNameAsc(Long storeId, String email);
 }

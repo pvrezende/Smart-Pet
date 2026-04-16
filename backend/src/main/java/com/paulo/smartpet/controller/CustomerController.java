@@ -20,10 +20,11 @@ public class CustomerController {
 
     @GetMapping
     public List<Customer> list(
+            @RequestParam(required = false) Long storeId,
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) String search
     ) {
-        return customerService.list(active, search);
+        return customerService.list(storeId, active, search);
     }
 
     @GetMapping("/{id}")

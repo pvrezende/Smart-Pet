@@ -46,6 +46,8 @@ public record ProductRequest(
                 regexp = "^$|^[0-9A-Za-z\\-]+$",
                 message = "Código de barras deve conter apenas letras, números ou hífen"
         )
-        String barcode
+        String barcode,
+
+        Long storeId
 ) {
 }

@@ -22,11 +22,12 @@ public class ProductController {
 
     @GetMapping
     public List<Product> list(
+            @RequestParam(required = false) Long storeId,
             @RequestParam(required = false) String animalType,
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) String search
     ) {
-        return productService.list(animalType, active, search);
+        return productService.list(storeId, animalType, active, search);
     }
 
     @GetMapping("/{id}")
@@ -35,13 +36,19 @@ public class ProductController {
     }
 
     @GetMapping("/barcode/{barcode}")
-    public Product getByBarcode(@PathVariable String barcode) {
-        return productService.getByBarcode(barcode);
+    public Product getByBarcode(
+            @PathVariable String barcode,
+            @RequestParam(required = false) Long storeId
+    ) {
+        return productService.getByBarcode(storeId, barcode);
     }
 
     @GetMapping("/barcode-search")
-    public List<Product> searchByBarcode(@RequestParam String barcode) {
-        return productService.searchByBarcode(barcode);
+    public List<Product> searchByBarcode(
+            @RequestParam String barcode,
+            @RequestParam(required = false) Long storeId
+    ) {
+        return productService.searchByBarcode(storeId, barcode);
     }
 
     @GetMapping("/{id}/movements")

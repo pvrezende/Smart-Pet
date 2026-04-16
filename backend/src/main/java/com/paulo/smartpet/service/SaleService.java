@@ -12,6 +12,7 @@ import com.paulo.smartpet.entity.Product;
 import com.paulo.smartpet.entity.Sale;
 import com.paulo.smartpet.entity.SaleItem;
 import com.paulo.smartpet.entity.StockMovement;
+import com.paulo.smartpet.entity.Store;
 import com.paulo.smartpet.exception.BusinessException;
 import com.paulo.smartpet.exception.ResourceNotFoundException;
 import com.paulo.smartpet.repository.CustomerRepository;
@@ -33,26 +34,29 @@ public class SaleService {
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
     private final StockMovementRepository stockMovementRepository;
+    private final StoreService storeService;
 
     public SaleService(
             SaleRepository saleRepository,
             ProductRepository productRepository,
             CustomerRepository customerRepository,
-            StockMovementRepository stockMovementRepository
+            StockMovementRepository stockMovementRepository,
+            StoreService storeService
     ) {
         this.saleRepository = saleRepository;
         this.productRepository = productRepository;
         this.customerRepository = customerRepository;
         this.stockMovementRepository = stockMovementRepository;
+        this.storeService = storeService;
     }
 
-    public List<SaleResponse> list(Long customerId, String status, LocalDate startDate, LocalDate endDate) {
-        List<Sale> sales = findSales(customerId, status, startDate, endDate);
+    public List<SaleResponse> list(Long storeId, Long customerId, String status, LocalDate startDate, LocalDate endDate) {
+        List<Sale> sales = findSales(storeId, customerId, status, startDate, endDate);
         return sales.stream().map(this::toResponse).toList();
     }
 
-    public SalesHistorySummaryResponse getHistorySummary(Long customerId, String status, LocalDate startDate, LocalDate endDate) {
-        List<Sale> sales = findSales(customerId, status, startDate, endDate);
+    public SalesHistorySummaryResponse getHistorySummary(Long storeId, Long customerId, String status, LocalDate startDate, LocalDate endDate) {
+        List<Sale> sales = findSales(storeId, customerId, status, startDate, endDate);
 
         long salesCount = sales.size();
         long itemsCount = sales.stream()
@@ -107,11 +111,18 @@ public class SaleService {
             throw new BusinessException("Carrinho vazio");
         }
 
+        Store store = storeService.resolveStore(request.storeId());
         Sale sale = new Sale();
+        sale.setStore(store);
 
         if (request.customerId() != null) {
             Customer customer = customerRepository.findById(request.customerId())
                     .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado"));
+
+            if (customer.getStore() == null || !customer.getStore().getId().equals(store.getId())) {
+                throw new BusinessException("Cliente não pertence à loja informada");
+            }
+
             sale.setCustomer(customer);
         }
 
@@ -124,6 +135,10 @@ public class SaleService {
         for (SaleItemRequest itemRequest : request.items()) {
             Product product = productRepository.findById(itemRequest.productId())
                     .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
+
+            if (product.getStore() == null || !product.getStore().getId().equals(store.getId())) {
+                throw new BusinessException("Produto não pertence à loja informada");
+            }
 
             if (!Boolean.TRUE.equals(product.getActive())) {
                 throw new BusinessException("Produto inativo não pode ser vendido: " + product.getName());
@@ -198,7 +213,8 @@ public class SaleService {
         return toDetailsResponse(saved);
     }
 
-    private List<Sale> findSales(Long customerId, String status, LocalDate startDate, LocalDate endDate) {
+    private List<Sale> findSales(Long storeId, Long customerId, String status, LocalDate startDate, LocalDate endDate) {
+        Store store = storeService.resolveStore(storeId);
         String normalizedStatus = normalizeStatus(status);
 
         if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
@@ -209,21 +225,21 @@ public class SaleService {
         LocalDateTime end = endDate != null ? endDate.atTime(LocalTime.MAX) : null;
 
         if (customerId != null && start != null && end != null && normalizedStatus != null) {
-            return saleRepository.findByCustomerIdAndSaleDateBetweenAndStatusOrderBySaleDateDesc(customerId, start, end, normalizedStatus);
+            return saleRepository.findByStoreIdAndCustomerIdAndSaleDateBetweenAndStatusOrderBySaleDateDesc(store.getId(), customerId, start, end, normalizedStatus);
         } else if (customerId != null && start != null && end != null) {
-            return saleRepository.findByCustomerIdAndSaleDateBetweenOrderBySaleDateDesc(customerId, start, end);
+            return saleRepository.findByStoreIdAndCustomerIdAndSaleDateBetweenOrderBySaleDateDesc(store.getId(), customerId, start, end);
         } else if (start != null && end != null && normalizedStatus != null) {
-            return saleRepository.findBySaleDateBetweenAndStatusOrderBySaleDateDesc(start, end, normalizedStatus);
+            return saleRepository.findByStoreIdAndSaleDateBetweenAndStatusOrderBySaleDateDesc(store.getId(), start, end, normalizedStatus);
         } else if (start != null && end != null) {
-            return saleRepository.findBySaleDateBetweenOrderBySaleDateDesc(start, end);
+            return saleRepository.findByStoreIdAndSaleDateBetweenOrderBySaleDateDesc(store.getId(), start, end);
         } else if (customerId != null && normalizedStatus != null) {
-            return saleRepository.findByCustomerIdAndStatusOrderBySaleDateDesc(customerId, normalizedStatus);
+            return saleRepository.findByStoreIdAndCustomerIdAndStatusOrderBySaleDateDesc(store.getId(), customerId, normalizedStatus);
         } else if (customerId != null) {
-            return saleRepository.findByCustomerIdOrderBySaleDateDesc(customerId);
+            return saleRepository.findByStoreIdAndCustomerIdOrderBySaleDateDesc(store.getId(), customerId);
         } else if (normalizedStatus != null) {
-            return saleRepository.findByStatusOrderBySaleDateDesc(normalizedStatus);
+            return saleRepository.findByStoreIdAndStatusOrderBySaleDateDesc(store.getId(), normalizedStatus);
         } else {
-            return saleRepository.findAllByOrderBySaleDateDesc();
+            return saleRepository.findByStoreIdOrderBySaleDateDesc(store.getId());
         }
     }
 

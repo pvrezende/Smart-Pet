@@ -8,30 +8,33 @@ import java.util.List;
 
 public interface SaleRepository extends JpaRepository<Sale, Long> {
 
-    List<Sale> findAllByOrderBySaleDateDesc();
+    List<Sale> findByStoreIdOrderBySaleDateDesc(Long storeId);
 
-    List<Sale> findByStatusOrderBySaleDateDesc(String status);
+    List<Sale> findByStoreIdAndStatusOrderBySaleDateDesc(Long storeId, String status);
 
-    List<Sale> findByCustomerIdOrderBySaleDateDesc(Long customerId);
+    List<Sale> findByStoreIdAndCustomerIdOrderBySaleDateDesc(Long storeId, Long customerId);
 
-    List<Sale> findByCustomerIdAndStatusOrderBySaleDateDesc(Long customerId, String status);
+    List<Sale> findByStoreIdAndCustomerIdAndStatusOrderBySaleDateDesc(Long storeId, Long customerId, String status);
 
-    List<Sale> findBySaleDateBetweenOrderBySaleDateDesc(LocalDateTime start, LocalDateTime end);
+    List<Sale> findByStoreIdAndSaleDateBetweenOrderBySaleDateDesc(Long storeId, LocalDateTime start, LocalDateTime end);
 
-    List<Sale> findBySaleDateBetweenAndStatusOrderBySaleDateDesc(LocalDateTime start, LocalDateTime end, String status);
+    List<Sale> findByStoreIdAndSaleDateBetweenAndStatusOrderBySaleDateDesc(Long storeId, LocalDateTime start, LocalDateTime end, String status);
 
-    List<Sale> findByCustomerIdAndSaleDateBetweenOrderBySaleDateDesc(Long customerId, LocalDateTime start, LocalDateTime end);
+    List<Sale> findByStoreIdAndCustomerIdAndSaleDateBetweenOrderBySaleDateDesc(Long storeId, Long customerId, LocalDateTime start, LocalDateTime end);
 
-    List<Sale> findByCustomerIdAndSaleDateBetweenAndStatusOrderBySaleDateDesc(
+    List<Sale> findByStoreIdAndCustomerIdAndSaleDateBetweenAndStatusOrderBySaleDateDesc(
+            Long storeId,
             Long customerId,
             LocalDateTime start,
             LocalDateTime end,
             String status
     );
 
-    long countByStatus(String status);
+    long countByStoreId(Long storeId);
 
-    long countBySaleDateBetweenAndStatus(LocalDateTime start, LocalDateTime end, String status);
+    long countByStoreIdAndStatus(Long storeId, String status);
 
-    List<Sale> findBySaleDateBetweenAndStatus(LocalDateTime start, LocalDateTime end, String status);
+    long countByStoreIdAndSaleDateBetweenAndStatus(Long storeId, LocalDateTime start, LocalDateTime end, String status);
+
+    List<Sale> findByStoreIdAndSaleDateBetweenAndStatus(Long storeId, LocalDateTime start, LocalDateTime end, String status);
 }

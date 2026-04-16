@@ -12,6 +12,7 @@ import java.util.List;
 public record CreateSaleRequest(
 
         Long customerId,
+        Long storeId,
 
         @NotEmpty(message = "A venda deve possuir ao menos um item")
         List<@Valid SaleItemRequest> items,

@@ -2,6 +2,7 @@ package com.paulo.smartpet.service;
 
 import com.paulo.smartpet.dto.CustomerRequest;
 import com.paulo.smartpet.entity.Customer;
+import com.paulo.smartpet.entity.Store;
 import com.paulo.smartpet.exception.BusinessException;
 import com.paulo.smartpet.exception.ResourceNotFoundException;
 import com.paulo.smartpet.repository.CustomerRepository;
@@ -16,31 +17,34 @@ import java.util.Map;
 @Service
 public class CustomerService {
     private final CustomerRepository customerRepository;
+    private final StoreService storeService;
 
-    public CustomerService(CustomerRepository customerRepository) {
+    public CustomerService(CustomerRepository customerRepository, StoreService storeService) {
         this.customerRepository = customerRepository;
+        this.storeService = storeService;
     }
 
-    public List<Customer> list(Boolean active, String search) {
+    public List<Customer> list(Long storeId, Boolean active, String search) {
+        Store store = storeService.resolveStore(storeId);
         String normalizedSearch = normalizeBlank(search);
 
         if (active != null && normalizedSearch == null) {
-            return customerRepository.findByActiveOrderByNameAsc(active);
+            return customerRepository.findByStoreIdAndActiveOrderByNameAsc(store.getId(), active);
         }
 
         if (normalizedSearch == null) {
-            return customerRepository.findByActiveTrueOrderByNameAsc();
+            return customerRepository.findByStoreIdAndActiveTrueOrderByNameAsc(store.getId());
         }
 
         String numericSearch = cleanNumber(normalizedSearch);
 
         List<Customer> result = new ArrayList<>();
-        result.addAll(customerRepository.findByActiveTrueAndNameContainingIgnoreCaseOrderByNameAsc(normalizedSearch));
-        result.addAll(customerRepository.findByActiveTrueAndEmailContainingIgnoreCaseOrderByNameAsc(normalizedSearch));
+        result.addAll(customerRepository.findByStoreIdAndActiveTrueAndNameContainingIgnoreCaseOrderByNameAsc(store.getId(), normalizedSearch));
+        result.addAll(customerRepository.findByStoreIdAndActiveTrueAndEmailContainingIgnoreCaseOrderByNameAsc(store.getId(), normalizedSearch));
 
         if (!numericSearch.isBlank()) {
-            result.addAll(customerRepository.findByActiveTrueAndCpfContainingOrderByNameAsc(numericSearch));
-            result.addAll(customerRepository.findByActiveTrueAndPhoneContainingOrderByNameAsc(numericSearch));
+            result.addAll(customerRepository.findByStoreIdAndActiveTrueAndCpfContainingOrderByNameAsc(store.getId(), numericSearch));
+            result.addAll(customerRepository.findByStoreIdAndActiveTrueAndPhoneContainingOrderByNameAsc(store.getId(), numericSearch));
         }
 
         Map<Long, Customer> unique = new LinkedHashMap<>();
@@ -60,11 +64,12 @@ public class CustomerService {
     }
 
     public Customer create(CustomerRequest request) {
+        Store store = storeService.resolveStore(request.storeId());
         String cpf = cleanNumber(request.cpf());
         String phone = cleanNumber(request.phone());
 
-        if (customerRepository.existsByCpf(cpf)) {
-            throw new BusinessException("Já existe cliente cadastrado com este CPF");
+        if (customerRepository.existsByStoreIdAndCpf(store.getId(), cpf)) {
+            throw new BusinessException("Já existe cliente cadastrado com este CPF nesta loja");
         }
 
         Customer customer = new Customer();
@@ -74,6 +79,7 @@ public class CustomerService {
         customer.setPhone(phone);
         customer.setEmail(normalizeBlank(request.email()));
         customer.setAddress(normalizeBlank(request.address()));
+        customer.setStore(store);
         customer.setActive(true);
 
         return customerRepository.save(customer);
@@ -81,12 +87,14 @@ public class CustomerService {
 
     public Customer update(Long id, CustomerRequest request) {
         Customer customer = getById(id);
+        Long effectiveStoreId = request.storeId() != null ? request.storeId() : (customer.getStore() != null ? customer.getStore().getId() : null);
+        Store store = storeService.resolveStore(effectiveStoreId);
 
         String cpf = cleanNumber(request.cpf());
         String phone = cleanNumber(request.phone());
 
-        if (customerRepository.existsByCpfAndIdNot(cpf, id)) {
-            throw new BusinessException("Já existe outro cliente cadastrado com este CPF");
+        if (customerRepository.existsByStoreIdAndCpfAndIdNot(store.getId(), cpf, id)) {
+            throw new BusinessException("Já existe outro cliente cadastrado com este CPF nesta loja");
         }
 
         customer.setName(request.name().trim());
@@ -94,6 +102,7 @@ public class CustomerService {
         customer.setPhone(phone);
         customer.setEmail(normalizeBlank(request.email()));
         customer.setAddress(normalizeBlank(request.address()));
+        customer.setStore(store);
 
         return customerRepository.save(customer);
     }

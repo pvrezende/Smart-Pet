@@ -2,7 +2,7 @@ package com.paulo.smartpet.service;
 
 import com.paulo.smartpet.dto.DashboardResponse;
 import com.paulo.smartpet.entity.Product;
-import com.paulo.smartpet.entity.Sale;
+import com.paulo.smartpet.entity.Store;
 import com.paulo.smartpet.repository.CustomerRepository;
 import com.paulo.smartpet.repository.ProductRepository;
 import com.paulo.smartpet.repository.SaleRepository;
@@ -20,19 +20,23 @@ public class DashboardService {
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
     private final SaleRepository saleRepository;
+    private final StoreService storeService;
 
     public DashboardService(
             ProductRepository productRepository,
             CustomerRepository customerRepository,
-            SaleRepository saleRepository
+            SaleRepository saleRepository,
+            StoreService storeService
     ) {
         this.productRepository = productRepository;
         this.customerRepository = customerRepository;
         this.saleRepository = saleRepository;
+        this.storeService = storeService;
     }
 
-    public DashboardResponse getDashboard() {
-        List<Product> products = productRepository.findByActiveTrueOrderByNameAsc();
+    public DashboardResponse getDashboard(Long storeId) {
+        Store store = storeService.resolveStore(storeId);
+        List<Product> products = productRepository.findByStoreIdAndActiveTrueOrderByNameAsc(store.getId());
 
         long lowStockCount = products.stream()
                 .filter(p -> p.getStock() != null && p.getMinimumStock() != null && p.getStock() <= p.getMinimumStock())
@@ -55,21 +59,21 @@ public class DashboardService {
         LocalDateTime startMonth = startOfMonthDate.atStartOfDay();
         LocalDateTime endMonth = today.atTime(LocalTime.MAX);
 
-        long totalSales = saleRepository.count();
-        long completedSales = saleRepository.countByStatus("CONCLUIDA");
-        long canceledSales = saleRepository.countByStatus("CANCELADA");
+        long totalSales = saleRepository.countByStoreId(store.getId());
+        long completedSales = saleRepository.countByStoreIdAndStatus(store.getId(), "CONCLUIDA");
+        long canceledSales = saleRepository.countByStoreIdAndStatus(store.getId(), "CANCELADA");
 
-        long salesCountToday = saleRepository.countBySaleDateBetweenAndStatus(startToday, endToday, "CONCLUIDA");
-        long salesCountWeek = saleRepository.countBySaleDateBetweenAndStatus(startWeek, endWeek, "CONCLUIDA");
-        long salesCountMonth = saleRepository.countBySaleDateBetweenAndStatus(startMonth, endMonth, "CONCLUIDA");
+        long salesCountToday = saleRepository.countByStoreIdAndSaleDateBetweenAndStatus(store.getId(), startToday, endToday, "CONCLUIDA");
+        long salesCountWeek = saleRepository.countByStoreIdAndSaleDateBetweenAndStatus(store.getId(), startWeek, endWeek, "CONCLUIDA");
+        long salesCountMonth = saleRepository.countByStoreIdAndSaleDateBetweenAndStatus(store.getId(), startMonth, endMonth, "CONCLUIDA");
 
-        BigDecimal salesAmountToday = sumFinalAmount(saleRepository.findBySaleDateBetweenAndStatus(startToday, endToday, "CONCLUIDA"));
-        BigDecimal salesAmountWeek = sumFinalAmount(saleRepository.findBySaleDateBetweenAndStatus(startWeek, endWeek, "CONCLUIDA"));
-        BigDecimal salesAmountMonth = sumFinalAmount(saleRepository.findBySaleDateBetweenAndStatus(startMonth, endMonth, "CONCLUIDA"));
+        BigDecimal salesAmountToday = sumFinalAmount(saleRepository.findByStoreIdAndSaleDateBetweenAndStatus(store.getId(), startToday, endToday, "CONCLUIDA"));
+        BigDecimal salesAmountWeek = sumFinalAmount(saleRepository.findByStoreIdAndSaleDateBetweenAndStatus(store.getId(), startWeek, endWeek, "CONCLUIDA"));
+        BigDecimal salesAmountMonth = sumFinalAmount(saleRepository.findByStoreIdAndSaleDateBetweenAndStatus(store.getId(), startMonth, endMonth, "CONCLUIDA"));
 
         return new DashboardResponse(
                 (long) products.size(),
-                (long) customerRepository.findByActiveTrueOrderByNameAsc().size(),
+                (long) customerRepository.findByStoreIdAndActiveTrueOrderByNameAsc(store.getId()).size(),
                 totalSales,
                 completedSales,
                 canceledSales,
@@ -90,7 +94,7 @@ public class DashboardService {
         return BigDecimal.valueOf(salePrice).multiply(BigDecimal.valueOf(stock));
     }
 
-    private BigDecimal sumFinalAmount(List<Sale> sales) {
+    private BigDecimal sumFinalAmount(List<com.paulo.smartpet.entity.Sale> sales) {
         return sales.stream()
                 .map(sale -> sale.getFinalAmount() == null ? BigDecimal.ZERO : sale.getFinalAmount())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);

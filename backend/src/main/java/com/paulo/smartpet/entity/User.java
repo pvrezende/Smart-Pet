@@ -1,15 +1,9 @@
 package com.paulo.smartpet.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "users")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class User {
 
     @Id
@@ -31,4 +25,64 @@ public class User {
 
     @Column(nullable = false)
     private Boolean active = true;
+
+    public User() {
+    }
+
+    public User(Long id, String name, String username, String password, UserRole role, Boolean active) {
+        this.id = id;
+        this.name = name;
+        this.username = username;
+        this.password = password;
+        this.role = role;
+        this.active = active;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public UserRole getRole() {
+        return role;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public void setRole(UserRole role) {
+        this.role = role;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
 }

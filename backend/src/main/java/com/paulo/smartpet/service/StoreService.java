@@ -83,6 +83,13 @@ public class StoreService {
                 });
     }
 
+    public Store resolveStore(Long storeId) {
+        if (storeId == null) {
+            return ensureDefaultStoreExists();
+        }
+        return getEntityById(storeId);
+    }
+
     public Store getEntityById(Long id) {
         return storeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Loja não encontrada"));
