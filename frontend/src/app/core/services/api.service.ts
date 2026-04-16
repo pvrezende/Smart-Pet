@@ -20,5 +20,9 @@ export class ApiService {
   createCustomer(payload: Customer): Observable<Customer> { return this.http.post<Customer>(`${this.baseUrl}/customers`, payload); }
 
   getSales() { return this.http.get<any[]>(`${this.baseUrl}/sales`); }
-  createSale(payload: any) { return this.http.post(`${this.baseUrl}/sales`, payload); }
+  createSale(payload: any) {
+  return this.http.post(`${this.baseUrl}/sales`, payload, {
+    responseType: 'text' as 'json'
+  });
+}
 }

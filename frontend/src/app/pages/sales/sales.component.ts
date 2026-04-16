@@ -220,8 +220,7 @@ export class SalesPageComponent implements OnInit {
   }
 
   finishSale(): void {
-    const payload = {
-      customerId: this.selectedCustomerId,
+    const payload: any = {
       paymentMethod: this.paymentMethod,
       discount: this.discount,
       notes: '',
@@ -231,13 +230,23 @@ export class SalesPageComponent implements OnInit {
       }))
     };
 
-    this.api.createSale(payload).subscribe(() => {
-      this.cart = [];
-      this.discount = 0;
-      this.selectedCustomerId = null;
-      this.paymentMethod = 'PIX';
-      this.reloadData();
-      alert('Venda realizada com sucesso');
+    if (this.selectedCustomerId !== null) {
+      payload.customerId = this.selectedCustomerId;
+    }
+
+    this.api.createSale(payload).subscribe({
+      next: () => {
+        this.cart = [];
+        this.discount = 0;
+        this.selectedCustomerId = null;
+        this.paymentMethod = 'PIX';
+        this.reloadData();
+        alert('Venda realizada com sucesso');
+      },
+      error: (error) => {
+        console.error('Erro ao finalizar venda:', error);
+        alert('Não foi possível finalizar a venda. Verifique os dados e tente novamente.');
+      }
     });
   }
 }
