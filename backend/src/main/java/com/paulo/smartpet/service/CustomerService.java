@@ -1,5 +1,6 @@
 package com.paulo.smartpet.service;
 
+import com.paulo.smartpet.dto.ApiPageResponse;
 import com.paulo.smartpet.dto.CustomerRequest;
 import com.paulo.smartpet.dto.CustomerResponse;
 import com.paulo.smartpet.entity.Customer;
@@ -7,6 +8,9 @@ import com.paulo.smartpet.entity.Store;
 import com.paulo.smartpet.exception.BusinessException;
 import com.paulo.smartpet.exception.ResourceNotFoundException;
 import com.paulo.smartpet.repository.CustomerRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -14,6 +18,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class CustomerService {
@@ -61,6 +66,63 @@ public class CustomerService {
         return customers.stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    public ApiPageResponse<CustomerResponse> listPaged(
+            Long storeId,
+            Boolean active,
+            String search,
+            Integer page,
+            Integer size,
+            String sortBy,
+            String sortDir
+    ) {
+        Store store = storeService.resolveStore(storeId);
+        String normalizedSearch = normalizeBlank(search);
+        String numericSearch = normalizedSearch == null ? null : cleanNumber(normalizedSearch);
+        if (numericSearch != null && numericSearch.isBlank()) {
+            numericSearch = null;
+        }
+
+        int safePage = page == null ? 0 : page;
+        int safeSize = size == null ? 10 : size;
+
+        if (safePage < 0) {
+            throw new BusinessException("Página não pode ser negativa");
+        }
+
+        if (safeSize < 1 || safeSize > 100) {
+            throw new BusinessException("Tamanho da página deve estar entre 1 e 100");
+        }
+
+        String safeSortBy = resolveCustomerSortBy(sortBy);
+        Sort.Direction direction = resolveSortDirection(sortDir);
+
+        PageRequest pageable = PageRequest.of(safePage, safeSize, Sort.by(direction, safeSortBy));
+
+        Page<Customer> result = customerRepository.findPageByFilters(
+                store.getId(),
+                active,
+                normalizedSearch,
+                numericSearch,
+                pageable
+        );
+
+        List<CustomerResponse> content = result.getContent()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+
+        return new ApiPageResponse<>(
+                content,
+                result.getNumber(),
+                result.getSize(),
+                result.getTotalElements(),
+                result.getTotalPages(),
+                result.isFirst(),
+                result.isLast(),
+                result.isEmpty()
+        );
     }
 
     public CustomerResponse getById(Long id) {
@@ -148,5 +210,24 @@ public class CustomerService {
 
     private String normalizeBlank(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private Sort.Direction resolveSortDirection(String sortDir) {
+        return "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+    }
+
+    private String resolveCustomerSortBy(String sortBy) {
+        String normalized = normalizeBlank(sortBy);
+        Set<String> allowed = Set.of("id", "name", "cpf", "phone", "email", "active");
+
+        if (normalized == null) {
+            return "name";
+        }
+
+        if (!allowed.contains(normalized)) {
+            throw new BusinessException("Campo de ordenação inválido para clientes");
+        }
+
+        return normalized;
     }
 }

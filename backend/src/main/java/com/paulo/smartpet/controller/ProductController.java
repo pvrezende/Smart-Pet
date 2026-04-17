@@ -1,5 +1,6 @@
 package com.paulo.smartpet.controller;
 
+import com.paulo.smartpet.dto.ApiPageResponse;
 import com.paulo.smartpet.dto.ProductRequest;
 import com.paulo.smartpet.dto.ProductResponse;
 import com.paulo.smartpet.dto.StockAdjustmentRequest;
@@ -28,6 +29,20 @@ public class ProductController {
             @RequestParam(required = false) String search
     ) {
         return productService.list(storeId, animalType, active, search);
+    }
+
+    @GetMapping("/page")
+    public ApiPageResponse<ProductResponse> listPaged(
+            @RequestParam(required = false) Long storeId,
+            @RequestParam(required = false) String animalType,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir
+    ) {
+        return productService.listPaged(storeId, animalType, active, search, page, size, sortBy, sortDir);
     }
 
     @GetMapping("/{id}")

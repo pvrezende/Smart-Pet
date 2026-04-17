@@ -1,5 +1,6 @@
 package com.paulo.smartpet.service;
 
+import com.paulo.smartpet.dto.ApiPageResponse;
 import com.paulo.smartpet.dto.ProductRequest;
 import com.paulo.smartpet.dto.ProductResponse;
 import com.paulo.smartpet.dto.StockMovementResponse;
@@ -10,10 +11,14 @@ import com.paulo.smartpet.exception.BusinessException;
 import com.paulo.smartpet.exception.ResourceNotFoundException;
 import com.paulo.smartpet.repository.ProductRepository;
 import com.paulo.smartpet.repository.StockMovementRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class ProductService {
@@ -80,6 +85,61 @@ public class ProductService {
         return products.stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    public ApiPageResponse<ProductResponse> listPaged(
+            Long storeId,
+            String animalType,
+            Boolean active,
+            String search,
+            Integer page,
+            Integer size,
+            String sortBy,
+            String sortDir
+    ) {
+        Store store = storeService.resolveStore(storeId);
+        String normalizedAnimalType = normalizeBlank(animalType);
+        String normalizedSearch = normalizeBlank(search);
+
+        int safePage = page == null ? 0 : page;
+        int safeSize = size == null ? 10 : size;
+
+        if (safePage < 0) {
+            throw new BusinessException("Página não pode ser negativa");
+        }
+
+        if (safeSize < 1 || safeSize > 100) {
+            throw new BusinessException("Tamanho da página deve estar entre 1 e 100");
+        }
+
+        String safeSortBy = resolveProductSortBy(sortBy);
+        Sort.Direction direction = resolveSortDirection(sortDir);
+
+        PageRequest pageable = PageRequest.of(safePage, safeSize, Sort.by(direction, safeSortBy));
+
+        Page<Product> result = productRepository.findPageByFilters(
+                store.getId(),
+                active,
+                normalizedAnimalType != null ? normalizedAnimalType.toLowerCase() : null,
+                normalizedSearch,
+                pageable
+        );
+
+        List<ProductResponse> content = result.getContent()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+
+        return new ApiPageResponse<>(
+                content,
+                result.getNumber(),
+                result.getSize(),
+                result.getTotalElements(),
+                result.getTotalPages(),
+                result.isFirst(),
+                result.isLast(),
+                result.isEmpty()
+        );
     }
 
     public ProductResponse getById(Long id) {
@@ -296,5 +356,24 @@ public class ProductService {
 
     private String normalizeBarcode(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private Sort.Direction resolveSortDirection(String sortDir) {
+        return "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+    }
+
+    private String resolveProductSortBy(String sortBy) {
+        String normalized = normalizeBlank(sortBy);
+        Set<String> allowed = Set.of("id", "name", "animalType", "brand", "stock", "salePrice", "minimumStock", "active");
+
+        if (normalized == null) {
+            return "name";
+        }
+
+        if (!allowed.contains(normalized)) {
+            throw new BusinessException("Campo de ordenação inválido para produtos");
+        }
+
+        return normalized;
     }
 }
