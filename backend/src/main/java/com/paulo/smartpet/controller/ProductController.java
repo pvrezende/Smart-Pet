@@ -2,15 +2,18 @@ package com.paulo.smartpet.controller;
 
 import com.paulo.smartpet.dto.ApiPageResponse;
 import com.paulo.smartpet.dto.ApiSuccessResponse;
+import com.paulo.smartpet.dto.CatalogSyncResponse;
 import com.paulo.smartpet.dto.ProductRequest;
 import com.paulo.smartpet.dto.ProductResponse;
 import com.paulo.smartpet.dto.StockAdjustmentRequest;
 import com.paulo.smartpet.dto.StockMovementResponse;
 import com.paulo.smartpet.service.ProductService;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -44,6 +47,19 @@ public class ProductController {
             @RequestParam(required = false) String sortDir
     ) {
         return productService.listPaged(storeId, animalType, active, search, page, size, sortBy, sortDir);
+    }
+
+    @GetMapping("/catalog")
+    public CatalogSyncResponse catalog(
+            @RequestParam Long storeId,
+            @RequestParam(required = false) String animalType,
+            @RequestParam(required = false) Boolean availableOnly,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+            LocalDateTime updatedAfter
+    ) {
+        return productService.getCatalog(storeId, animalType, availableOnly, search, updatedAfter);
     }
 
     @GetMapping("/{id}")

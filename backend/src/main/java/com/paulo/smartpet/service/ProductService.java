@@ -1,6 +1,8 @@
 package com.paulo.smartpet.service;
 
 import com.paulo.smartpet.dto.ApiPageResponse;
+import com.paulo.smartpet.dto.CatalogProductResponse;
+import com.paulo.smartpet.dto.CatalogSyncResponse;
 import com.paulo.smartpet.dto.ProductRequest;
 import com.paulo.smartpet.dto.ProductResponse;
 import com.paulo.smartpet.dto.StockMovementResponse;
@@ -17,6 +19,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -139,6 +142,35 @@ public class ProductService {
                 result.isFirst(),
                 result.isLast(),
                 result.isEmpty()
+        );
+    }
+
+    public CatalogSyncResponse getCatalog(
+            Long storeId,
+            String animalType,
+            Boolean availableOnly,
+            String search,
+            LocalDateTime updatedAfter
+    ) {
+        Store store = storeService.resolveStore(storeId);
+
+        List<CatalogProductResponse> products = productRepository.findCatalogByFilters(
+                        store.getId(),
+                        normalizeAnimalType(animalType),
+                        Boolean.TRUE.equals(availableOnly),
+                        normalizeBlank(search),
+                        updatedAfter
+                ).stream()
+                .map(this::toCatalogResponse)
+                .toList();
+
+        return new CatalogSyncResponse(
+                store.getId(),
+                store.getCode(),
+                store.getName(),
+                LocalDateTime.now(),
+                products.size(),
+                products
         );
     }
 
@@ -350,12 +382,34 @@ public class ProductService {
         );
     }
 
+    private CatalogProductResponse toCatalogResponse(Product product) {
+        return new CatalogProductResponse(
+                product.getId(),
+                product.getName(),
+                product.getAnimalType(),
+                product.getBrand(),
+                product.getWeight(),
+                product.getSalePrice(),
+                product.getStock(),
+                product.getBarcode(),
+                product.getStock() != null && product.getStock() > 0,
+                product.getActive(),
+                product.getStore() != null ? product.getStore().getCode() : null,
+                product.getStore() != null ? product.getStore().getName() : null
+        );
+    }
+
     private String normalizeBlank(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
     private String normalizeBarcode(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String normalizeAnimalType(String value) {
+        String normalized = normalizeBlank(value);
+        return normalized == null ? null : normalized.toLowerCase();
     }
 
     private Sort.Direction resolveSortDirection(String sortDir) {

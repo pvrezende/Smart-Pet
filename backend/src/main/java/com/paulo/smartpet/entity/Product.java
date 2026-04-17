@@ -2,6 +2,10 @@ package com.paulo.smartpet.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(
@@ -35,6 +39,12 @@ public class Product {
 
     private Boolean active = true;
 
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+
     public Product() {
     }
 
@@ -52,6 +62,25 @@ public class Product {
         this.barcode = barcode;
         this.store = store;
         this.active = active;
+    }
+
+    public Product(Long id, String name, String animalType, String brand, Double weight, Double costPrice,
+                   Double salePrice, Integer stock, Integer minimumStock, String barcode, Store store,
+                   Boolean active, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this.id = id;
+        this.name = name;
+        this.animalType = animalType;
+        this.brand = brand;
+        this.weight = weight;
+        this.costPrice = costPrice;
+        this.salePrice = salePrice;
+        this.stock = stock;
+        this.minimumStock = minimumStock;
+        this.barcode = barcode;
+        this.store = store;
+        this.active = active;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
     public Long getId() {
@@ -102,6 +131,14 @@ public class Product {
         return active;
     }
 
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
     public void setId(Long id) {
         this.id = id;
     }
@@ -148,5 +185,13 @@ public class Product {
 
     public void setActive(Boolean active) {
         this.active = active;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

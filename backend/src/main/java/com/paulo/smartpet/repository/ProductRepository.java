@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,5 +62,29 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             String animalType,
             String search,
             Pageable pageable
+    );
+
+    @Query("""
+            select p
+            from Product p
+            where p.store.id = :storeId
+              and p.active = true
+              and (:animalType is null or p.animalType = :animalType)
+              and (:availableOnly = false or p.stock > 0)
+              and (
+                    :search is null
+                    or lower(p.name) like lower(concat('%', :search, '%'))
+                    or lower(p.brand) like lower(concat('%', :search, '%'))
+                    or lower(coalesce(p.barcode, '')) like lower(concat('%', :search, '%'))
+                  )
+              and (:updatedAfter is null or p.updatedAt >= :updatedAfter)
+            order by p.name asc
+            """)
+    List<Product> findCatalogByFilters(
+            Long storeId,
+            String animalType,
+            Boolean availableOnly,
+            String search,
+            LocalDateTime updatedAfter
     );
 }
