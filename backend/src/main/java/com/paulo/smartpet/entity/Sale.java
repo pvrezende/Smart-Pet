@@ -43,28 +43,28 @@ public class Sale {
     @Column(length = 150)
     private String externalId;
 
+    @Column(length = 30)
+    private String fiscalStatus = "PENDENTE";
+
+    @Column(length = 20)
+    private String nfeNumber;
+
+    @Column(length = 10)
+    private String nfeSeries;
+
+    @Column(length = 60)
+    private String nfeAccessKey;
+
+    @Column(length = 20)
+    private String nfeEnvironment;
+
+    @Column(length = 500)
+    private String nfeErrorMessage;
+
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SaleItem> items = new ArrayList<>();
 
     public Sale() {
-    }
-
-    public Sale(Long id, LocalDateTime saleDate, Customer customer, Store store, BigDecimal totalAmount,
-                BigDecimal discount, BigDecimal finalAmount, String paymentMethod, String status,
-                String notes, String source, String externalId, List<SaleItem> items) {
-        this.id = id;
-        this.saleDate = saleDate;
-        this.customer = customer;
-        this.store = store;
-        this.totalAmount = totalAmount;
-        this.discount = discount;
-        this.finalAmount = finalAmount;
-        this.paymentMethod = paymentMethod;
-        this.status = status;
-        this.notes = notes;
-        this.source = source;
-        this.externalId = externalId;
-        this.items = items;
     }
 
     public Long getId() {
@@ -113,6 +113,30 @@ public class Sale {
 
     public String getExternalId() {
         return externalId;
+    }
+
+    public String getFiscalStatus() {
+        return fiscalStatus;
+    }
+
+    public String getNfeNumber() {
+        return nfeNumber;
+    }
+
+    public String getNfeSeries() {
+        return nfeSeries;
+    }
+
+    public String getNfeAccessKey() {
+        return nfeAccessKey;
+    }
+
+    public String getNfeEnvironment() {
+        return nfeEnvironment;
+    }
+
+    public String getNfeErrorMessage() {
+        return nfeErrorMessage;
     }
 
     public List<SaleItem> getItems() {
@@ -165,6 +189,30 @@ public class Sale {
 
     public void setExternalId(String externalId) {
         this.externalId = externalId;
+    }
+
+    public void setFiscalStatus(String fiscalStatus) {
+        this.fiscalStatus = fiscalStatus;
+    }
+
+    public void setNfeNumber(String nfeNumber) {
+        this.nfeNumber = nfeNumber;
+    }
+
+    public void setNfeSeries(String nfeSeries) {
+        this.nfeSeries = nfeSeries;
+    }
+
+    public void setNfeAccessKey(String nfeAccessKey) {
+        this.nfeAccessKey = nfeAccessKey;
+    }
+
+    public void setNfeEnvironment(String nfeEnvironment) {
+        this.nfeEnvironment = nfeEnvironment;
+    }
+
+    public void setNfeErrorMessage(String nfeErrorMessage) {
+        this.nfeErrorMessage = nfeErrorMessage;
     }
 
     public void setItems(List<SaleItem> items) {

@@ -15,6 +15,11 @@ public record SaleResponse(
         String notes,
         String source,
         String externalId,
+        String fiscalStatus,
+        String nfeNumber,
+        String nfeSeries,
+        String nfeAccessKey,
+        String nfeEnvironment,
         Integer itemsCount
 ) {
 }

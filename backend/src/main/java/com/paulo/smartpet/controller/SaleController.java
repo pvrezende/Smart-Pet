@@ -4,6 +4,7 @@ import com.paulo.smartpet.dto.ApiPageResponse;
 import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.CreateSaleRequest;
 import com.paulo.smartpet.dto.IntegrationSaleRequest;
+import com.paulo.smartpet.dto.NfeUpdateRequest;
 import com.paulo.smartpet.dto.SaleDetailsResponse;
 import com.paulo.smartpet.dto.SaleResponse;
 import com.paulo.smartpet.dto.SalesAnalyticsResponse;
@@ -88,6 +89,11 @@ public class SaleController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiSuccessResponse<SaleDetailsResponse> createFromIntegration(@Valid @RequestBody IntegrationSaleRequest request) {
         return ApiSuccessResponse.of("Venda de integração processada com sucesso", saleService.createFromIntegration(request));
+    }
+
+    @PatchMapping("/{id}/fiscal")
+    public ApiSuccessResponse<SaleDetailsResponse> updateFiscalData(@PathVariable Long id, @Valid @RequestBody NfeUpdateRequest request) {
+        return ApiSuccessResponse.of("Dados fiscais da venda atualizados com sucesso", saleService.updateFiscalData(id, request));
     }
 
     @PatchMapping("/{id}/cancel")

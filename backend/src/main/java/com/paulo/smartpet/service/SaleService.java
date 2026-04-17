@@ -3,6 +3,7 @@ package com.paulo.smartpet.service;
 import com.paulo.smartpet.dto.ApiPageResponse;
 import com.paulo.smartpet.dto.CreateSaleRequest;
 import com.paulo.smartpet.dto.IntegrationSaleRequest;
+import com.paulo.smartpet.dto.NfeUpdateRequest;
 import com.paulo.smartpet.dto.SaleCustomerResponse;
 import com.paulo.smartpet.dto.SaleDetailsResponse;
 import com.paulo.smartpet.dto.SaleItemRequest;
@@ -279,6 +280,20 @@ public class SaleService {
     }
 
     @Transactional
+    public SaleDetailsResponse updateFiscalData(Long id, NfeUpdateRequest request) {
+        Sale sale = getEntityById(id);
+
+        sale.setFiscalStatus(normalizeFiscalStatus(request.fiscalStatus()));
+        sale.setNfeNumber(normalizeBlank(request.nfeNumber()));
+        sale.setNfeSeries(normalizeBlank(request.nfeSeries()));
+        sale.setNfeAccessKey(normalizeBlank(request.nfeAccessKey()));
+        sale.setNfeEnvironment(normalizeBlank(request.nfeEnvironment()));
+        sale.setNfeErrorMessage(normalizeBlank(request.nfeErrorMessage()));
+
+        return toDetailsResponse(saleRepository.save(sale));
+    }
+
+    @Transactional
     public SaleDetailsResponse cancel(Long id) {
         Sale sale = saleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada"));
@@ -327,6 +342,7 @@ public class SaleService {
         sale.setStore(store);
         sale.setSource(source);
         sale.setExternalId(externalId);
+        sale.setFiscalStatus("PENDENTE");
 
         if (customerId != null) {
             Customer customer = customerRepository.findById(customerId)
@@ -506,6 +522,11 @@ public class SaleService {
                 sale.getNotes(),
                 sale.getSource(),
                 sale.getExternalId(),
+                sale.getFiscalStatus(),
+                sale.getNfeNumber(),
+                sale.getNfeSeries(),
+                sale.getNfeAccessKey(),
+                sale.getNfeEnvironment(),
                 sale.getItems() == null ? 0 : sale.getItems().size()
         );
     }
@@ -528,6 +549,12 @@ public class SaleService {
                 sale.getNotes(),
                 sale.getSource(),
                 sale.getExternalId(),
+                sale.getFiscalStatus(),
+                sale.getNfeNumber(),
+                sale.getNfeSeries(),
+                sale.getNfeAccessKey(),
+                sale.getNfeEnvironment(),
+                sale.getNfeErrorMessage(),
                 items
         );
     }
@@ -561,6 +588,21 @@ public class SaleService {
 
     private String normalizeStatus(String value) {
         return value == null || value.isBlank() ? null : value.trim().toUpperCase();
+    }
+
+    private String normalizeFiscalStatus(String value) {
+        String normalized = normalizeBlank(value);
+        if (normalized == null) {
+            throw new BusinessException("Status fiscal é obrigatório");
+        }
+
+        String upper = normalized.toUpperCase();
+        Set<String> allowed = Set.of("PENDENTE", "EM_PROCESSAMENTO", "AUTORIZADA", "REJEITADA", "CANCELADA");
+        if (!allowed.contains(upper)) {
+            throw new BusinessException("Status fiscal inválido");
+        }
+
+        return upper;
     }
 
     private String normalizePeriodType(String value) {

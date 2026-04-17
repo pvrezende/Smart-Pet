@@ -313,6 +313,11 @@ public class DashboardService {
                 sale.getNotes(),
                 sale.getSource(),
                 sale.getExternalId(),
+                sale.getFiscalStatus(),
+                sale.getNfeNumber(),
+                sale.getNfeSeries(),
+                sale.getNfeAccessKey(),
+                sale.getNfeEnvironment(),
                 sale.getItems() == null ? 0 : sale.getItems().size()
         );
     }
