@@ -7,7 +7,10 @@ import com.paulo.smartpet.dto.SaleDetailsResponse;
 import com.paulo.smartpet.dto.SaleItemRequest;
 import com.paulo.smartpet.dto.SaleItemResponse;
 import com.paulo.smartpet.dto.SaleResponse;
+import com.paulo.smartpet.dto.SalesAnalyticsResponse;
 import com.paulo.smartpet.dto.SalesHistorySummaryResponse;
+import com.paulo.smartpet.dto.SalesSeriesItemResponse;
+import com.paulo.smartpet.dto.TopProductResponse;
 import com.paulo.smartpet.entity.Customer;
 import com.paulo.smartpet.entity.Product;
 import com.paulo.smartpet.entity.Sale;
@@ -30,11 +33,19 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
 public class SaleService {
+    private static final DateTimeFormatter DAY_LABEL_FORMAT = DateTimeFormatter.ofPattern("dd/MM");
+    private static final DateTimeFormatter MONTH_LABEL_FORMAT = DateTimeFormatter.ofPattern("MM/yyyy");
+
     private final SaleRepository saleRepository;
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
@@ -163,6 +174,55 @@ public class SaleService {
                 netAmount,
                 completedSales,
                 canceledSales
+        );
+    }
+
+    public SalesAnalyticsResponse getSalesAnalytics(
+            Long storeId,
+            LocalDate startDate,
+            LocalDate endDate,
+            String periodType,
+            Integer top
+    ) {
+        Store store = storeService.resolveStore(storeId);
+
+        LocalDate effectiveStart = startDate != null ? startDate : LocalDate.now().withDayOfMonth(1);
+        LocalDate effectiveEnd = endDate != null ? endDate : LocalDate.now();
+
+        if (effectiveEnd.isBefore(effectiveStart)) {
+            throw new BusinessException("Data final não pode ser menor que a data inicial");
+        }
+
+        String normalizedPeriodType = normalizePeriodType(periodType);
+        int topLimit = top == null ? 5 : top;
+
+        if (topLimit < 1 || topLimit > 20) {
+            throw new BusinessException("Quantidade de produtos do ranking deve estar entre 1 e 20");
+        }
+
+        List<Sale> sales = saleRepository.findByStoreIdAndSaleDateBetweenAndStatusOrderBySaleDateDesc(
+                store.getId(),
+                effectiveStart.atStartOfDay(),
+                effectiveEnd.atTime(LocalTime.MAX),
+                "CONCLUIDA"
+        );
+
+        BigDecimal totalAmount = sales.stream()
+                .map(sale -> sale.getFinalAmount() == null ? BigDecimal.ZERO : sale.getFinalAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        List<SalesSeriesItemResponse> series = "month".equals(normalizedPeriodType)
+                ? buildMonthlySeries(sales)
+                : buildDailySeries(sales);
+
+        List<TopProductResponse> topProducts = buildTopProducts(sales, topLimit);
+
+        return new SalesAnalyticsResponse(
+                normalizedPeriodType,
+                totalAmount,
+                (long) sales.size(),
+                series,
+                topProducts
         );
     }
 
@@ -311,6 +371,73 @@ public class SaleService {
         }
     }
 
+    private List<SalesSeriesItemResponse> buildDailySeries(List<Sale> sales) {
+        Map<LocalDate, List<Sale>> grouped = sales.stream()
+                .collect(java.util.stream.Collectors.groupingBy(sale -> sale.getSaleDate().toLocalDate()));
+
+        return grouped.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> new SalesSeriesItemResponse(
+                        entry.getKey().format(DAY_LABEL_FORMAT),
+                        sumSaleList(entry.getValue()),
+                        (long) entry.getValue().size()
+                ))
+                .toList();
+    }
+
+    private List<SalesSeriesItemResponse> buildMonthlySeries(List<Sale> sales) {
+        Map<YearMonth, List<Sale>> grouped = sales.stream()
+                .collect(java.util.stream.Collectors.groupingBy(sale -> YearMonth.from(sale.getSaleDate())));
+
+        return grouped.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> new SalesSeriesItemResponse(
+                        entry.getKey().format(MONTH_LABEL_FORMAT),
+                        sumSaleList(entry.getValue()),
+                        (long) entry.getValue().size()
+                ))
+                .toList();
+    }
+
+    private List<TopProductResponse> buildTopProducts(List<Sale> sales, int topLimit) {
+        Map<Long, TopProductAccumulator> accumulatorMap = new LinkedHashMap<>();
+
+        for (Sale sale : sales) {
+            for (SaleItem item : sale.getItems()) {
+                if (item.getProduct() == null || item.getProduct().getId() == null) {
+                    continue;
+                }
+
+                Long productId = item.getProduct().getId();
+                TopProductAccumulator acc = accumulatorMap.computeIfAbsent(
+                        productId,
+                        id -> new TopProductAccumulator(id, item.getProduct().getName())
+                );
+
+                acc.quantitySold += item.getQuantity() == null ? 0 : item.getQuantity();
+                acc.totalAmount = acc.totalAmount.add(item.getSubtotal() == null ? BigDecimal.ZERO : item.getSubtotal());
+            }
+        }
+
+        return accumulatorMap.values().stream()
+                .sorted(Comparator.comparing(TopProductAccumulator::getQuantitySold).reversed()
+                        .thenComparing(TopProductAccumulator::getTotalAmount).reversed())
+                .limit(topLimit)
+                .map(acc -> new TopProductResponse(
+                        acc.productId,
+                        acc.productName,
+                        acc.quantitySold,
+                        acc.totalAmount
+                ))
+                .toList();
+    }
+
+    private BigDecimal sumSaleList(List<Sale> sales) {
+        return sales.stream()
+                .map(sale -> sale.getFinalAmount() == null ? BigDecimal.ZERO : sale.getFinalAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     private SaleResponse toResponse(Sale sale) {
         return new SaleResponse(
                 sale.getId(),
@@ -377,6 +504,20 @@ public class SaleService {
         return value == null || value.isBlank() ? null : value.trim().toUpperCase();
     }
 
+    private String normalizePeriodType(String value) {
+        String normalized = normalizeBlank(value);
+        if (normalized == null) {
+            return "day";
+        }
+
+        String lower = normalized.toLowerCase();
+        if (!Set.of("day", "month").contains(lower)) {
+            throw new BusinessException("Tipo de período inválido. Use day ou month");
+        }
+
+        return lower;
+    }
+
     private Sort.Direction resolveSortDirection(String sortDir) {
         return "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
     }
@@ -394,5 +535,25 @@ public class SaleService {
         }
 
         return normalized;
+    }
+
+    private static class TopProductAccumulator {
+        private final Long productId;
+        private final String productName;
+        private long quantitySold = 0;
+        private BigDecimal totalAmount = BigDecimal.ZERO;
+
+        private TopProductAccumulator(Long productId, String productName) {
+            this.productId = productId;
+            this.productName = productName;
+        }
+
+        public Long getQuantitySold() {
+            return quantitySold;
+        }
+
+        public BigDecimal getTotalAmount() {
+            return totalAmount;
+        }
     }
 }

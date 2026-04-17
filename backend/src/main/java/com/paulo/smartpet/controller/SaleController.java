@@ -5,6 +5,7 @@ import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.CreateSaleRequest;
 import com.paulo.smartpet.dto.SaleDetailsResponse;
 import com.paulo.smartpet.dto.SaleResponse;
+import com.paulo.smartpet.dto.SalesAnalyticsResponse;
 import com.paulo.smartpet.dto.SalesHistorySummaryResponse;
 import com.paulo.smartpet.service.SaleService;
 import jakarta.validation.Valid;
@@ -47,6 +48,17 @@ public class SaleController {
             @RequestParam(required = false) String sortDir
     ) {
         return saleService.listPaged(storeId, customerId, status, startDate, endDate, page, size, sortBy, sortDir);
+    }
+
+    @GetMapping("/analytics")
+    public SalesAnalyticsResponse analytics(
+            @RequestParam(required = false) Long storeId,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false) String periodType,
+            @RequestParam(required = false) Integer top
+    ) {
+        return saleService.getSalesAnalytics(storeId, startDate, endDate, periodType, top);
     }
 
     @GetMapping("/history-summary")
