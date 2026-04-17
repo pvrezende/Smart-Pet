@@ -1,5 +1,6 @@
 package com.paulo.smartpet.controller;
 
+import com.paulo.smartpet.dto.ApiPageResponse;
 import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.CreateSaleRequest;
 import com.paulo.smartpet.dto.SaleDetailsResponse;
@@ -31,6 +32,21 @@ public class SaleController {
             @RequestParam(required = false) LocalDate endDate
     ) {
         return saleService.list(storeId, customerId, status, startDate, endDate);
+    }
+
+    @GetMapping("/page")
+    public ApiPageResponse<SaleResponse> listPaged(
+            @RequestParam(required = false) Long storeId,
+            @RequestParam(required = false) Long customerId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir
+    ) {
+        return saleService.listPaged(storeId, customerId, status, startDate, endDate, page, size, sortBy, sortDir);
     }
 
     @GetMapping("/history-summary")

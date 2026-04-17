@@ -1,5 +1,6 @@
 package com.paulo.smartpet.service;
 
+import com.paulo.smartpet.dto.ApiPageResponse;
 import com.paulo.smartpet.dto.CreateSaleRequest;
 import com.paulo.smartpet.dto.SaleCustomerResponse;
 import com.paulo.smartpet.dto.SaleDetailsResponse;
@@ -19,6 +20,9 @@ import com.paulo.smartpet.repository.CustomerRepository;
 import com.paulo.smartpet.repository.ProductRepository;
 import com.paulo.smartpet.repository.SaleRepository;
 import com.paulo.smartpet.repository.StockMovementRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +31,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class SaleService {
@@ -53,6 +58,69 @@ public class SaleService {
     public List<SaleResponse> list(Long storeId, Long customerId, String status, LocalDate startDate, LocalDate endDate) {
         List<Sale> sales = findSales(storeId, customerId, status, startDate, endDate);
         return sales.stream().map(this::toResponse).toList();
+    }
+
+    public ApiPageResponse<SaleResponse> listPaged(
+            Long storeId,
+            Long customerId,
+            String status,
+            LocalDate startDate,
+            LocalDate endDate,
+            Integer page,
+            Integer size,
+            String sortBy,
+            String sortDir
+    ) {
+        Store store = storeService.resolveStore(storeId);
+        String normalizedStatus = normalizeStatus(status);
+
+        if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
+            throw new BusinessException("Data final não pode ser menor que a data inicial");
+        }
+
+        int safePage = page == null ? 0 : page;
+        int safeSize = size == null ? 10 : size;
+
+        if (safePage < 0) {
+            throw new BusinessException("Página não pode ser negativa");
+        }
+
+        if (safeSize < 1 || safeSize > 100) {
+            throw new BusinessException("Tamanho da página deve estar entre 1 e 100");
+        }
+
+        String safeSortBy = resolveSaleSortBy(sortBy);
+        Sort.Direction direction = resolveSortDirection(sortDir);
+
+        LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
+        LocalDateTime end = endDate != null ? endDate.atTime(LocalTime.MAX) : null;
+
+        PageRequest pageable = PageRequest.of(safePage, safeSize, Sort.by(direction, safeSortBy));
+
+        Page<Sale> result = saleRepository.findPageByFilters(
+                store.getId(),
+                customerId,
+                normalizedStatus,
+                start,
+                end,
+                pageable
+        );
+
+        List<SaleResponse> content = result.getContent()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+
+        return new ApiPageResponse<>(
+                content,
+                result.getNumber(),
+                result.getSize(),
+                result.getTotalElements(),
+                result.getTotalPages(),
+                result.isFirst(),
+                result.isLast(),
+                result.isEmpty()
+        );
     }
 
     public SalesHistorySummaryResponse getHistorySummary(Long storeId, Long customerId, String status, LocalDate startDate, LocalDate endDate) {
@@ -307,5 +375,24 @@ public class SaleService {
 
     private String normalizeStatus(String value) {
         return value == null || value.isBlank() ? null : value.trim().toUpperCase();
+    }
+
+    private Sort.Direction resolveSortDirection(String sortDir) {
+        return "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+    }
+
+    private String resolveSaleSortBy(String sortBy) {
+        String normalized = normalizeBlank(sortBy);
+        Set<String> allowed = Set.of("id", "saleDate", "totalAmount", "discount", "finalAmount", "paymentMethod", "status");
+
+        if (normalized == null) {
+            return "saleDate";
+        }
+
+        if (!allowed.contains(normalized)) {
+            throw new BusinessException("Campo de ordenação inválido para vendas");
+        }
+
+        return normalized;
     }
 }
