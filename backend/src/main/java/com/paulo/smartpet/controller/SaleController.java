@@ -4,6 +4,10 @@ import com.paulo.smartpet.dto.ApiPageResponse;
 import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.CreateSaleRequest;
 import com.paulo.smartpet.dto.IntegrationSaleRequest;
+import com.paulo.smartpet.dto.NfeAuthorizeRequest;
+import com.paulo.smartpet.dto.NfeIssueRequest;
+import com.paulo.smartpet.dto.NfeRejectRequest;
+import com.paulo.smartpet.dto.NfeStatusResponse;
 import com.paulo.smartpet.dto.NfeUpdateRequest;
 import com.paulo.smartpet.dto.SaleDetailsResponse;
 import com.paulo.smartpet.dto.SaleResponse;
@@ -79,6 +83,11 @@ public class SaleController {
         return saleService.getById(id);
     }
 
+    @GetMapping("/{id}/nfe-status")
+    public NfeStatusResponse getNfeStatus(@PathVariable Long id) {
+        return saleService.getNfeStatus(id);
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiSuccessResponse<SaleDetailsResponse> create(@Valid @RequestBody CreateSaleRequest request) {
@@ -94,6 +103,22 @@ public class SaleController {
     @PatchMapping("/{id}/fiscal")
     public ApiSuccessResponse<SaleDetailsResponse> updateFiscalData(@PathVariable Long id, @Valid @RequestBody NfeUpdateRequest request) {
         return ApiSuccessResponse.of("Dados fiscais da venda atualizados com sucesso", saleService.updateFiscalData(id, request));
+    }
+
+    @PostMapping("/{id}/nfe/issue")
+    public ApiSuccessResponse<SaleDetailsResponse> requestNfeIssue(@PathVariable Long id, @RequestBody(required = false) NfeIssueRequest request) {
+        NfeIssueRequest safeRequest = request == null ? new NfeIssueRequest(null) : request;
+        return ApiSuccessResponse.of("Solicitação de emissão fiscal registrada com sucesso", saleService.requestNfeIssue(id, safeRequest));
+    }
+
+    @PostMapping("/{id}/nfe/authorize")
+    public ApiSuccessResponse<SaleDetailsResponse> authorizeNfe(@PathVariable Long id, @Valid @RequestBody NfeAuthorizeRequest request) {
+        return ApiSuccessResponse.of("NF-e autorizada com sucesso", saleService.authorizeNfe(id, request));
+    }
+
+    @PostMapping("/{id}/nfe/reject")
+    public ApiSuccessResponse<SaleDetailsResponse> rejectNfe(@PathVariable Long id, @Valid @RequestBody NfeRejectRequest request) {
+        return ApiSuccessResponse.of("NF-e rejeitada com sucesso", saleService.rejectNfe(id, request));
     }
 
     @PatchMapping("/{id}/cancel")

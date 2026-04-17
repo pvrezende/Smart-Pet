@@ -3,6 +3,10 @@ package com.paulo.smartpet.service;
 import com.paulo.smartpet.dto.ApiPageResponse;
 import com.paulo.smartpet.dto.CreateSaleRequest;
 import com.paulo.smartpet.dto.IntegrationSaleRequest;
+import com.paulo.smartpet.dto.NfeAuthorizeRequest;
+import com.paulo.smartpet.dto.NfeIssueRequest;
+import com.paulo.smartpet.dto.NfeRejectRequest;
+import com.paulo.smartpet.dto.NfeStatusResponse;
 import com.paulo.smartpet.dto.NfeUpdateRequest;
 import com.paulo.smartpet.dto.SaleCustomerResponse;
 import com.paulo.smartpet.dto.SaleDetailsResponse;
@@ -240,6 +244,11 @@ public class SaleService {
                 .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada"));
     }
 
+    public NfeStatusResponse getNfeStatus(Long id) {
+        Sale sale = getEntityById(id);
+        return toNfeStatusResponse(sale);
+    }
+
     @Transactional
     public SaleDetailsResponse create(CreateSaleRequest request) {
         return createInternal(
@@ -289,6 +298,65 @@ public class SaleService {
         sale.setNfeAccessKey(normalizeBlank(request.nfeAccessKey()));
         sale.setNfeEnvironment(normalizeBlank(request.nfeEnvironment()));
         sale.setNfeErrorMessage(normalizeBlank(request.nfeErrorMessage()));
+
+        return toDetailsResponse(saleRepository.save(sale));
+    }
+
+    @Transactional
+    public SaleDetailsResponse requestNfeIssue(Long id, NfeIssueRequest request) {
+        Sale sale = getEntityById(id);
+
+        if (!"CONCLUIDA".equalsIgnoreCase(sale.getStatus())) {
+            throw new BusinessException("Somente vendas concluídas podem entrar em emissão fiscal");
+        }
+
+        if ("AUTORIZADA".equalsIgnoreCase(sale.getFiscalStatus())) {
+            throw new BusinessException("NF-e desta venda já está autorizada");
+        }
+
+        if ("CANCELADA".equalsIgnoreCase(sale.getFiscalStatus())) {
+            throw new BusinessException("Venda com documento fiscal cancelado não pode voltar para emissão");
+        }
+
+        sale.setFiscalStatus("EM_PROCESSAMENTO");
+        sale.setNfeEnvironment(normalizeEnvironment(request.environment()));
+        sale.setNfeErrorMessage(null);
+
+        return toDetailsResponse(saleRepository.save(sale));
+    }
+
+    @Transactional
+    public SaleDetailsResponse authorizeNfe(Long id, NfeAuthorizeRequest request) {
+        Sale sale = getEntityById(id);
+
+        if (!"CONCLUIDA".equalsIgnoreCase(sale.getStatus())) {
+            throw new BusinessException("Somente vendas concluídas podem ter NF-e autorizada");
+        }
+
+        sale.setFiscalStatus("AUTORIZADA");
+        sale.setNfeNumber(request.nfeNumber().trim());
+        sale.setNfeSeries(request.nfeSeries().trim());
+        sale.setNfeAccessKey(request.nfeAccessKey().trim());
+        sale.setNfeEnvironment(normalizeEnvironment(request.environment()));
+        sale.setNfeErrorMessage(null);
+
+        return toDetailsResponse(saleRepository.save(sale));
+    }
+
+    @Transactional
+    public SaleDetailsResponse rejectNfe(Long id, NfeRejectRequest request) {
+        Sale sale = getEntityById(id);
+
+        if ("AUTORIZADA".equalsIgnoreCase(sale.getFiscalStatus())) {
+            throw new BusinessException("NF-e autorizada não pode ser rejeitada por este endpoint");
+        }
+
+        sale.setFiscalStatus("REJEITADA");
+        sale.setNfeEnvironment(normalizeEnvironment(request.environment()));
+        sale.setNfeErrorMessage(request.errorMessage().trim());
+        sale.setNfeNumber(null);
+        sale.setNfeSeries(null);
+        sale.setNfeAccessKey(null);
 
         return toDetailsResponse(saleRepository.save(sale));
     }
@@ -559,6 +627,19 @@ public class SaleService {
         );
     }
 
+    private NfeStatusResponse toNfeStatusResponse(Sale sale) {
+        return new NfeStatusResponse(
+                sale.getId(),
+                sale.getStatus(),
+                sale.getFiscalStatus(),
+                sale.getNfeNumber(),
+                sale.getNfeSeries(),
+                sale.getNfeAccessKey(),
+                sale.getNfeEnvironment(),
+                sale.getNfeErrorMessage()
+        );
+    }
+
     private SaleItemResponse toItemResponse(SaleItem item) {
         return new SaleItemResponse(
                 item.getId(),
@@ -600,6 +681,21 @@ public class SaleService {
         Set<String> allowed = Set.of("PENDENTE", "EM_PROCESSAMENTO", "AUTORIZADA", "REJEITADA", "CANCELADA");
         if (!allowed.contains(upper)) {
             throw new BusinessException("Status fiscal inválido");
+        }
+
+        return upper;
+    }
+
+    private String normalizeEnvironment(String value) {
+        String normalized = normalizeBlank(value);
+        if (normalized == null) {
+            return null;
+        }
+
+        String upper = normalized.toUpperCase();
+        Set<String> allowed = Set.of("HOMOLOGACAO", "PRODUCAO");
+        if (!allowed.contains(upper)) {
+            throw new BusinessException("Ambiente fiscal inválido");
         }
 
         return upper;
