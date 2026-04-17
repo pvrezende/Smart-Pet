@@ -1,6 +1,7 @@
 package com.paulo.smartpet.controller;
 
 import com.paulo.smartpet.dto.ApiPageResponse;
+import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.ProductRequest;
 import com.paulo.smartpet.dto.ProductResponse;
 import com.paulo.smartpet.dto.StockAdjustmentRequest;
@@ -73,13 +74,13 @@ public class ProductController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ProductResponse create(@Valid @RequestBody ProductRequest request) {
-        return productService.create(request);
+    public ApiSuccessResponse<ProductResponse> create(@Valid @RequestBody ProductRequest request) {
+        return ApiSuccessResponse.of("Produto criado com sucesso", productService.create(request));
     }
 
     @PutMapping("/{id}")
-    public ProductResponse update(@PathVariable Long id, @Valid @RequestBody ProductRequest request) {
-        return productService.update(id, request);
+    public ApiSuccessResponse<ProductResponse> update(@PathVariable Long id, @Valid @RequestBody ProductRequest request) {
+        return ApiSuccessResponse.of("Produto atualizado com sucesso", productService.update(id, request));
     }
 
     @PatchMapping("/{id}/deactivate")
@@ -89,12 +90,18 @@ public class ProductController {
     }
 
     @PostMapping("/{id}/stock/in")
-    public ProductResponse stockIn(@PathVariable Long id, @Valid @RequestBody StockAdjustmentRequest request) {
-        return productService.addStock(id, request.quantity(), request.observation());
+    public ApiSuccessResponse<ProductResponse> stockIn(@PathVariable Long id, @Valid @RequestBody StockAdjustmentRequest request) {
+        return ApiSuccessResponse.of(
+                "Entrada de estoque realizada com sucesso",
+                productService.addStock(id, request.quantity(), request.observation())
+        );
     }
 
     @PostMapping("/{id}/stock/out")
-    public ProductResponse stockOut(@PathVariable Long id, @Valid @RequestBody StockAdjustmentRequest request) {
-        return productService.removeStock(id, request.quantity(), request.observation());
+    public ApiSuccessResponse<ProductResponse> stockOut(@PathVariable Long id, @Valid @RequestBody StockAdjustmentRequest request) {
+        return ApiSuccessResponse.of(
+                "Saída de estoque realizada com sucesso",
+                productService.removeStock(id, request.quantity(), request.observation())
+        );
     }
 }

@@ -1,6 +1,7 @@
 package com.paulo.smartpet.controller;
 
 import com.paulo.smartpet.dto.ApiPageResponse;
+import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.CustomerRequest;
 import com.paulo.smartpet.dto.CustomerResponse;
 import com.paulo.smartpet.service.CustomerService;
@@ -48,13 +49,13 @@ public class CustomerController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public CustomerResponse create(@Valid @RequestBody CustomerRequest request) {
-        return customerService.create(request);
+    public ApiSuccessResponse<CustomerResponse> create(@Valid @RequestBody CustomerRequest request) {
+        return ApiSuccessResponse.of("Cliente criado com sucesso", customerService.create(request));
     }
 
     @PutMapping("/{id}")
-    public CustomerResponse update(@PathVariable Long id, @Valid @RequestBody CustomerRequest request) {
-        return customerService.update(id, request);
+    public ApiSuccessResponse<CustomerResponse> update(@PathVariable Long id, @Valid @RequestBody CustomerRequest request) {
+        return ApiSuccessResponse.of("Cliente atualizado com sucesso", customerService.update(id, request));
     }
 
     @PatchMapping("/{id}/deactivate")

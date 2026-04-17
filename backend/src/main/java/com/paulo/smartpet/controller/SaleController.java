@@ -1,5 +1,6 @@
 package com.paulo.smartpet.controller;
 
+import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.CreateSaleRequest;
 import com.paulo.smartpet.dto.SaleDetailsResponse;
 import com.paulo.smartpet.dto.SaleResponse;
@@ -50,12 +51,12 @@ public class SaleController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public SaleDetailsResponse create(@Valid @RequestBody CreateSaleRequest request) {
-        return saleService.create(request);
+    public ApiSuccessResponse<SaleDetailsResponse> create(@Valid @RequestBody CreateSaleRequest request) {
+        return ApiSuccessResponse.of("Venda criada com sucesso", saleService.create(request));
     }
 
     @PatchMapping("/{id}/cancel")
-    public SaleDetailsResponse cancel(@PathVariable Long id) {
-        return saleService.cancel(id);
+    public ApiSuccessResponse<SaleDetailsResponse> cancel(@PathVariable Long id) {
+        return ApiSuccessResponse.of("Venda cancelada com sucesso", saleService.cancel(id));
     }
 }
