@@ -2,15 +2,20 @@ package com.paulo.smartpet.exception;
 
 import com.paulo.smartpet.dto.ApiErrorResponse;
 import com.paulo.smartpet.dto.FieldValidationError;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -77,6 +82,89 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.badRequest().body(response);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMediaTypeNotSupported(
+            HttpMediaTypeNotSupportedException ex,
+            HttpServletRequest request
+    ) {
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(),
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE.getReasonPhrase(),
+                "Content-Type não suportado. Use application/json",
+                request.getRequestURI(),
+                List.of()
+        );
+
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(response);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleMessageNotReadable(
+            HttpMessageNotReadableException ex,
+            HttpServletRequest request
+    ) {
+        String message = "JSON inválido ou corpo da requisição malformado";
+
+        Throwable cause = ex.getCause();
+        if (cause instanceof InvalidFormatException invalidFormatException) {
+            String fieldName = invalidFormatException.getPath().isEmpty()
+                    ? null
+                    : invalidFormatException.getPath().get(invalidFormatException.getPath().size() - 1).getFieldName();
+
+            if (fieldName != null) {
+                message = "Valor inválido para o campo: " + fieldName;
+            }
+        }
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                message,
+                request.getRequestURI(),
+                List.of()
+        );
+
+        return ResponseEntity.badRequest().body(response);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiErrorResponse> handleMissingParameter(
+            MissingServletRequestParameterException ex,
+            HttpServletRequest request
+    ) {
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                "Parâmetro obrigatório ausente: " + ex.getParameterName(),
+                request.getRequestURI(),
+                List.of()
+        );
+
+        return ResponseEntity.badRequest().body(response);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataIntegrity(
+            DataIntegrityViolationException ex,
+            HttpServletRequest request
+    ) {
+        log.warn("Violação de integridade em {}: {}", request.getRequestURI(), ex.getMessage());
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                "Conflito de integridade dos dados no banco",
+                request.getRequestURI(),
+                List.of()
+        );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
     @ExceptionHandler(BadCredentialsException.class)

@@ -1,5 +1,6 @@
 package com.paulo.smartpet.controller;
 
+import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.CompanySettingsRequest;
 import com.paulo.smartpet.dto.CompanySettingsResponse;
 import com.paulo.smartpet.service.CompanySettingsService;
@@ -22,7 +23,7 @@ public class CompanySettingsController {
     }
 
     @PutMapping
-    public CompanySettingsResponse update(@Valid @RequestBody CompanySettingsRequest request) {
-        return companySettingsService.update(request);
+    public ApiSuccessResponse<CompanySettingsResponse> update(@Valid @RequestBody CompanySettingsRequest request) {
+        return ApiSuccessResponse.of("Configurações da empresa atualizadas com sucesso", companySettingsService.update(request));
     }
 }

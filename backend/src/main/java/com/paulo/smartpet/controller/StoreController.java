@@ -1,5 +1,6 @@
 package com.paulo.smartpet.controller;
 
+import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.StoreRequest;
 import com.paulo.smartpet.dto.StoreResponse;
 import com.paulo.smartpet.service.StoreService;
@@ -31,13 +32,13 @@ public class StoreController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public StoreResponse create(@Valid @RequestBody StoreRequest request) {
-        return storeService.create(request);
+    public ApiSuccessResponse<StoreResponse> create(@Valid @RequestBody StoreRequest request) {
+        return ApiSuccessResponse.of("Loja criada com sucesso", storeService.create(request));
     }
 
     @PutMapping("/{id}")
-    public StoreResponse update(@PathVariable Long id, @Valid @RequestBody StoreRequest request) {
-        return storeService.update(id, request);
+    public ApiSuccessResponse<StoreResponse> update(@PathVariable Long id, @Valid @RequestBody StoreRequest request) {
+        return ApiSuccessResponse.of("Loja atualizada com sucesso", storeService.update(id, request));
     }
 
     @PatchMapping("/{id}/deactivate")

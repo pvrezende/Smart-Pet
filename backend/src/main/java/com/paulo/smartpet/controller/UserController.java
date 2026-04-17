@@ -1,5 +1,6 @@
 package com.paulo.smartpet.controller;
 
+import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.CreateUserRequest;
 import com.paulo.smartpet.dto.UserResponse;
 import com.paulo.smartpet.service.UserService;
@@ -31,8 +32,8 @@ public class UserController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public UserResponse create(@Valid @RequestBody CreateUserRequest request) {
-        return userService.create(request);
+    public ApiSuccessResponse<UserResponse> create(@Valid @RequestBody CreateUserRequest request) {
+        return ApiSuccessResponse.of("Usuário criado com sucesso", userService.create(request));
     }
 
     @PatchMapping("/{id}/deactivate")
