@@ -2,6 +2,7 @@ package com.paulo.smartpet.controller;
 
 import com.paulo.smartpet.dto.DashboardResponse;
 import com.paulo.smartpet.dto.MobileDashboardResponse;
+import com.paulo.smartpet.dto.ReportsAnalyticsResponse;
 import com.paulo.smartpet.service.DashboardService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,5 +27,10 @@ public class DashboardController {
     @GetMapping("/mobile")
     public MobileDashboardResponse getMobileDashboard(@RequestParam(required = false) Long storeId) {
         return dashboardService.getMobileDashboard(storeId);
+    }
+
+    @GetMapping("/reports-analytics")
+    public ReportsAnalyticsResponse getReportsAnalytics(@RequestParam(required = false) Long storeId) {
+        return dashboardService.getReportsAnalytics(storeId);
     }
 }
