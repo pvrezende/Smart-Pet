@@ -4,7 +4,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "products")
+@Table(
+        name = "products",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_product_store_barcode", columnNames = {"store_id", "barcode"})
+        }
+)
 public class Product {
 
     @Id
@@ -20,7 +25,7 @@ public class Product {
     private Integer stock;
     private Integer minimumStock;
 
-    @Column(unique = true, length = 100)
+    @Column(length = 100)
     private String barcode;
 
     @JsonIgnore
