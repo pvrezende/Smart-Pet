@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface SaleRepository extends JpaRepository<Sale, Long> {
 
@@ -40,6 +41,10 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
     long countByStoreIdAndSaleDateBetweenAndStatus(Long storeId, LocalDateTime start, LocalDateTime end, String status);
 
     List<Sale> findByStoreIdAndSaleDateBetweenAndStatus(Long storeId, LocalDateTime start, LocalDateTime end, String status);
+
+    Optional<Sale> findByStoreIdAndSourceAndExternalId(Long storeId, String source, String externalId);
+
+    boolean existsByStoreIdAndSourceAndExternalId(Long storeId, String source, String externalId);
 
     @Query("""
             select s

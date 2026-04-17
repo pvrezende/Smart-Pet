@@ -13,6 +13,8 @@ public record SaleResponse(
         String paymentMethod,
         String status,
         String notes,
+        String source,
+        String externalId,
         Integer itemsCount
 ) {
 }

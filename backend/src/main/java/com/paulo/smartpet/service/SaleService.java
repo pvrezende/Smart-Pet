@@ -2,6 +2,7 @@ package com.paulo.smartpet.service;
 
 import com.paulo.smartpet.dto.ApiPageResponse;
 import com.paulo.smartpet.dto.CreateSaleRequest;
+import com.paulo.smartpet.dto.IntegrationSaleRequest;
 import com.paulo.smartpet.dto.SaleCustomerResponse;
 import com.paulo.smartpet.dto.SaleDetailsResponse;
 import com.paulo.smartpet.dto.SaleItemRequest;
@@ -235,16 +236,95 @@ public class SaleService {
 
     @Transactional
     public SaleDetailsResponse create(CreateSaleRequest request) {
-        if (request.items() == null || request.items().isEmpty()) {
+        return createInternal(
+                request.customerId(),
+                request.storeId(),
+                null,
+                null,
+                request.items(),
+                request.paymentMethod(),
+                request.discount(),
+                request.notes()
+        );
+    }
+
+    @Transactional
+    public SaleDetailsResponse createFromIntegration(IntegrationSaleRequest request) {
+        Store store = storeService.resolveStore(request.storeId());
+        String source = normalizeSource(request.source());
+        String externalId = normalizeExternalId(request.externalId());
+
+        if (saleRepository.existsByStoreIdAndSourceAndExternalId(store.getId(), source, externalId)) {
+            Sale existing = saleRepository.findByStoreIdAndSourceAndExternalId(store.getId(), source, externalId)
+                    .orElseThrow(() -> new BusinessException("Venda externa já registrada para esta loja"));
+
+            return toDetailsResponse(existing);
+        }
+
+        return createInternal(
+                request.customerId(),
+                request.storeId(),
+                source,
+                externalId,
+                request.items(),
+                request.paymentMethod(),
+                request.discount(),
+                request.notes()
+        );
+    }
+
+    @Transactional
+    public SaleDetailsResponse cancel(Long id) {
+        Sale sale = saleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada"));
+
+        if ("CANCELADA".equalsIgnoreCase(sale.getStatus())) {
+            return toDetailsResponse(sale);
+        }
+
+        for (SaleItem item : sale.getItems()) {
+            Product product = item.getProduct();
+            int previous = product.getStock();
+            product.setStock(previous + item.getQuantity());
+            productRepository.save(product);
+
+            StockMovement movement = new StockMovement();
+            movement.setProduct(product);
+            movement.setMovementType("CANCELAMENTO");
+            movement.setQuantity(item.getQuantity());
+            movement.setPreviousStock(previous);
+            movement.setCurrentStock(product.getStock());
+            movement.setObservation("Cancelamento da venda " + sale.getId());
+            stockMovementRepository.save(movement);
+        }
+
+        sale.setStatus("CANCELADA");
+        Sale saved = saleRepository.save(sale);
+        return toDetailsResponse(saved);
+    }
+
+    private SaleDetailsResponse createInternal(
+            Long customerId,
+            Long storeId,
+            String source,
+            String externalId,
+            List<SaleItemRequest> itemsRequest,
+            String paymentMethod,
+            BigDecimal discount,
+            String notes
+    ) {
+        if (itemsRequest == null || itemsRequest.isEmpty()) {
             throw new BusinessException("Carrinho vazio");
         }
 
-        Store store = storeService.resolveStore(request.storeId());
+        Store store = storeService.resolveStore(storeId);
         Sale sale = new Sale();
         sale.setStore(store);
+        sale.setSource(source);
+        sale.setExternalId(externalId);
 
-        if (request.customerId() != null) {
-            Customer customer = customerRepository.findById(request.customerId())
+        if (customerId != null) {
+            Customer customer = customerRepository.findById(customerId)
                     .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado"));
 
             if (customer.getStore() == null || !customer.getStore().getId().equals(store.getId())) {
@@ -254,13 +334,13 @@ public class SaleService {
             sale.setCustomer(customer);
         }
 
-        sale.setPaymentMethod(request.paymentMethod().trim());
-        sale.setNotes(normalizeBlank(request.notes()));
-        sale.setDiscount(request.discount() == null ? BigDecimal.ZERO : request.discount());
+        sale.setPaymentMethod(paymentMethod.trim());
+        sale.setNotes(normalizeBlank(notes));
+        sale.setDiscount(discount == null ? BigDecimal.ZERO : discount);
 
         BigDecimal total = BigDecimal.ZERO;
 
-        for (SaleItemRequest itemRequest : request.items()) {
+        for (SaleItemRequest itemRequest : itemsRequest) {
             Product product = productRepository.findById(itemRequest.productId())
                     .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
 
@@ -307,36 +387,6 @@ public class SaleService {
         sale.setTotalAmount(total);
         sale.setFinalAmount(total.subtract(sale.getDiscount()));
 
-        Sale saved = saleRepository.save(sale);
-        return toDetailsResponse(saved);
-    }
-
-    @Transactional
-    public SaleDetailsResponse cancel(Long id) {
-        Sale sale = saleRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada"));
-
-        if ("CANCELADA".equalsIgnoreCase(sale.getStatus())) {
-            return toDetailsResponse(sale);
-        }
-
-        for (SaleItem item : sale.getItems()) {
-            Product product = item.getProduct();
-            int previous = product.getStock();
-            product.setStock(previous + item.getQuantity());
-            productRepository.save(product);
-
-            StockMovement movement = new StockMovement();
-            movement.setProduct(product);
-            movement.setMovementType("CANCELAMENTO");
-            movement.setQuantity(item.getQuantity());
-            movement.setPreviousStock(previous);
-            movement.setCurrentStock(product.getStock());
-            movement.setObservation("Cancelamento da venda " + sale.getId());
-            stockMovementRepository.save(movement);
-        }
-
-        sale.setStatus("CANCELADA");
         Sale saved = saleRepository.save(sale);
         return toDetailsResponse(saved);
     }
@@ -449,6 +499,8 @@ public class SaleService {
                 sale.getPaymentMethod(),
                 sale.getStatus(),
                 sale.getNotes(),
+                sale.getSource(),
+                sale.getExternalId(),
                 sale.getItems() == null ? 0 : sale.getItems().size()
         );
     }
@@ -469,6 +521,8 @@ public class SaleService {
                 sale.getPaymentMethod(),
                 sale.getStatus(),
                 sale.getNotes(),
+                sale.getSource(),
+                sale.getExternalId(),
                 items
         );
     }
@@ -516,6 +570,16 @@ public class SaleService {
         }
 
         return lower;
+    }
+
+    private String normalizeSource(String value) {
+        String normalized = normalizeBlank(value);
+        return normalized == null ? null : normalized.toUpperCase();
+    }
+
+    private String normalizeExternalId(String value) {
+        String normalized = normalizeBlank(value);
+        return normalized == null ? null : normalized;
     }
 
     private Sort.Direction resolveSortDirection(String sortDir) {

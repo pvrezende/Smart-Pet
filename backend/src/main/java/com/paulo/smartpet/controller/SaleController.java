@@ -3,6 +3,7 @@ package com.paulo.smartpet.controller;
 import com.paulo.smartpet.dto.ApiPageResponse;
 import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.CreateSaleRequest;
+import com.paulo.smartpet.dto.IntegrationSaleRequest;
 import com.paulo.smartpet.dto.SaleDetailsResponse;
 import com.paulo.smartpet.dto.SaleResponse;
 import com.paulo.smartpet.dto.SalesAnalyticsResponse;
@@ -81,6 +82,12 @@ public class SaleController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiSuccessResponse<SaleDetailsResponse> create(@Valid @RequestBody CreateSaleRequest request) {
         return ApiSuccessResponse.of("Venda criada com sucesso", saleService.create(request));
+    }
+
+    @PostMapping("/integration")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiSuccessResponse<SaleDetailsResponse> createFromIntegration(@Valid @RequestBody IntegrationSaleRequest request) {
+        return ApiSuccessResponse.of("Venda de integração processada com sucesso", saleService.createFromIntegration(request));
     }
 
     @PatchMapping("/{id}/cancel")

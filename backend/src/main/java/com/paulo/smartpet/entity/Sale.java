@@ -37,6 +37,12 @@ public class Sale {
     private String status = "CONCLUIDA";
     private String notes;
 
+    @Column(length = 50)
+    private String source;
+
+    @Column(length = 150)
+    private String externalId;
+
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SaleItem> items = new ArrayList<>();
 
@@ -45,7 +51,7 @@ public class Sale {
 
     public Sale(Long id, LocalDateTime saleDate, Customer customer, Store store, BigDecimal totalAmount,
                 BigDecimal discount, BigDecimal finalAmount, String paymentMethod, String status,
-                String notes, List<SaleItem> items) {
+                String notes, String source, String externalId, List<SaleItem> items) {
         this.id = id;
         this.saleDate = saleDate;
         this.customer = customer;
@@ -56,6 +62,8 @@ public class Sale {
         this.paymentMethod = paymentMethod;
         this.status = status;
         this.notes = notes;
+        this.source = source;
+        this.externalId = externalId;
         this.items = items;
     }
 
@@ -97,6 +105,14 @@ public class Sale {
 
     public String getNotes() {
         return notes;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public String getExternalId() {
+        return externalId;
     }
 
     public List<SaleItem> getItems() {
@@ -141,6 +157,14 @@ public class Sale {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
+    }
+
+    public void setExternalId(String externalId) {
+        this.externalId = externalId;
     }
 
     public void setItems(List<SaleItem> items) {

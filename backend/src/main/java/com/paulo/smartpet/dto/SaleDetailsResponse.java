@@ -14,6 +14,8 @@ public record SaleDetailsResponse(
         String paymentMethod,
         String status,
         String notes,
+        String source,
+        String externalId,
         List<SaleItemResponse> items
 ) {
 }
