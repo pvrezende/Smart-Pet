@@ -1,5 +1,6 @@
 package com.paulo.smartpet.controller;
 
+import com.paulo.smartpet.dto.ApiPageResponse;
 import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.CreateUserRequest;
 import com.paulo.smartpet.dto.UserResponse;
@@ -23,6 +24,19 @@ public class UserController {
     @GetMapping
     public List<UserResponse> list() {
         return userService.list();
+    }
+
+    @GetMapping("/page")
+    public ApiPageResponse<UserResponse> listPaged(
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir
+    ) {
+        return userService.listPaged(active, role, search, page, size, sortBy, sortDir);
     }
 
     @GetMapping("/{id}")

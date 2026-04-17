@@ -1,5 +1,6 @@
 package com.paulo.smartpet.controller;
 
+import com.paulo.smartpet.dto.ApiPageResponse;
 import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.StoreRequest;
 import com.paulo.smartpet.dto.StoreResponse;
@@ -23,6 +24,18 @@ public class StoreController {
     @GetMapping
     public List<StoreResponse> list() {
         return storeService.list();
+    }
+
+    @GetMapping("/page")
+    public ApiPageResponse<StoreResponse> listPaged(
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir
+    ) {
+        return storeService.listPaged(active, search, page, size, sortBy, sortDir);
     }
 
     @GetMapping("/{id}")
