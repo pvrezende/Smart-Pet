@@ -1,7 +1,7 @@
 package com.paulo.smartpet.controller;
 
 import com.paulo.smartpet.dto.CustomerRequest;
-import com.paulo.smartpet.entity.Customer;
+import com.paulo.smartpet.dto.CustomerResponse;
 import com.paulo.smartpet.service.CustomerService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -19,7 +19,7 @@ public class CustomerController {
     }
 
     @GetMapping
-    public List<Customer> list(
+    public List<CustomerResponse> list(
             @RequestParam(required = false) Long storeId,
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) String search
@@ -28,18 +28,18 @@ public class CustomerController {
     }
 
     @GetMapping("/{id}")
-    public Customer get(@PathVariable Long id) {
+    public CustomerResponse get(@PathVariable Long id) {
         return customerService.getById(id);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Customer create(@Valid @RequestBody CustomerRequest request) {
+    public CustomerResponse create(@Valid @RequestBody CustomerRequest request) {
         return customerService.create(request);
     }
 
     @PutMapping("/{id}")
-    public Customer update(@PathVariable Long id, @Valid @RequestBody CustomerRequest request) {
+    public CustomerResponse update(@PathVariable Long id, @Valid @RequestBody CustomerRequest request) {
         return customerService.update(id, request);
     }
 

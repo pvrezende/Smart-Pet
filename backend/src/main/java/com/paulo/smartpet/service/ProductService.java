@@ -1,6 +1,7 @@
 package com.paulo.smartpet.service;
 
 import com.paulo.smartpet.dto.ProductRequest;
+import com.paulo.smartpet.dto.ProductResponse;
 import com.paulo.smartpet.dto.StockMovementResponse;
 import com.paulo.smartpet.entity.Product;
 import com.paulo.smartpet.entity.StockMovement;
@@ -30,15 +31,17 @@ public class ProductService {
         this.storeService = storeService;
     }
 
-    public List<Product> list(Long storeId, String animalType, Boolean active, String search) {
+    public List<ProductResponse> list(Long storeId, String animalType, Boolean active, String search) {
         Store store = storeService.resolveStore(storeId);
         String normalizedAnimalType = normalizeBlank(animalType);
         String normalizedSearch = normalizeBlank(search);
 
+        List<Product> products;
+
         if (active == null) {
             if (normalizedSearch != null) {
                 if (normalizedAnimalType != null) {
-                    return productRepository
+                    products = productRepository
                             .findByStoreIdAndActiveTrueAndAnimalTypeAndNameContainingIgnoreCaseOrStoreIdAndActiveTrueAndAnimalTypeAndBrandContainingIgnoreCaseOrderByNameAsc(
                                     store.getId(),
                                     normalizedAnimalType.toLowerCase(),
@@ -47,37 +50,43 @@ public class ProductService {
                                     normalizedAnimalType.toLowerCase(),
                                     normalizedSearch
                             );
+                } else {
+                    products = productRepository
+                            .findByStoreIdAndActiveTrueAndNameContainingIgnoreCaseOrStoreIdAndActiveTrueAndBrandContainingIgnoreCaseOrderByNameAsc(
+                                    store.getId(),
+                                    normalizedSearch,
+                                    store.getId(),
+                                    normalizedSearch
+                            );
                 }
-
-                return productRepository
-                        .findByStoreIdAndActiveTrueAndNameContainingIgnoreCaseOrStoreIdAndActiveTrueAndBrandContainingIgnoreCaseOrderByNameAsc(
-                                store.getId(),
-                                normalizedSearch,
-                                store.getId(),
-                                normalizedSearch
-                        );
+            } else if (normalizedAnimalType != null) {
+                products = productRepository.findByStoreIdAndActiveTrueAndAnimalTypeOrderByNameAsc(
+                        store.getId(),
+                        normalizedAnimalType.toLowerCase()
+                );
+            } else {
+                products = productRepository.findByStoreIdAndActiveTrueOrderByNameAsc(store.getId());
             }
-
-            if (normalizedAnimalType != null) {
-                return productRepository.findByStoreIdAndActiveTrueAndAnimalTypeOrderByNameAsc(store.getId(), normalizedAnimalType.toLowerCase());
-            }
-
-            return productRepository.findByStoreIdAndActiveTrueOrderByNameAsc(store.getId());
+        } else if (normalizedAnimalType != null) {
+            products = productRepository.findByStoreIdAndActiveAndAnimalTypeOrderByNameAsc(
+                    store.getId(),
+                    active,
+                    normalizedAnimalType.toLowerCase()
+            );
+        } else {
+            products = productRepository.findByStoreIdAndActiveOrderByNameAsc(store.getId(), active);
         }
 
-        if (normalizedAnimalType != null) {
-            return productRepository.findByStoreIdAndActiveAndAnimalTypeOrderByNameAsc(store.getId(), active, normalizedAnimalType.toLowerCase());
-        }
-
-        return productRepository.findByStoreIdAndActiveOrderByNameAsc(store.getId(), active);
+        return products.stream()
+                .map(this::toResponse)
+                .toList();
     }
 
-    public Product getById(Long id) {
-        return productRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
+    public ProductResponse getById(Long id) {
+        return toResponse(getEntityById(id));
     }
 
-    public Product getByBarcode(Long storeId, String barcode) {
+    public ProductResponse getByBarcode(Long storeId, String barcode) {
         Store store = storeService.resolveStore(storeId);
         String normalizedBarcode = normalizeBarcode(barcode);
 
@@ -85,11 +94,13 @@ public class ProductService {
             throw new BusinessException("Código de barras é obrigatório");
         }
 
-        return productRepository.findByStoreIdAndBarcode(store.getId(), normalizedBarcode)
+        Product product = productRepository.findByStoreIdAndBarcode(store.getId(), normalizedBarcode)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado para o código de barras informado"));
+
+        return toResponse(product);
     }
 
-    public List<Product> searchByBarcode(Long storeId, String barcode) {
+    public List<ProductResponse> searchByBarcode(Long storeId, String barcode) {
         Store store = storeService.resolveStore(storeId);
         String normalizedBarcode = normalizeBarcode(barcode);
 
@@ -97,19 +108,22 @@ public class ProductService {
             throw new BusinessException("Código de barras é obrigatório");
         }
 
-        return productRepository.findByStoreIdAndBarcodeContainingIgnoreCaseOrderByNameAsc(store.getId(), normalizedBarcode);
-    }
-
-    public List<StockMovementResponse> getMovementsByProduct(Long productId) {
-        getById(productId);
-
-        return stockMovementRepository.findByProductIdOrderByMovementDateDesc(productId)
+        return productRepository.findByStoreIdAndBarcodeContainingIgnoreCaseOrderByNameAsc(store.getId(), normalizedBarcode)
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    public Product create(ProductRequest request) {
+    public List<StockMovementResponse> getMovementsByProduct(Long productId) {
+        getEntityById(productId);
+
+        return stockMovementRepository.findByProductIdOrderByMovementDateDesc(productId)
+                .stream()
+                .map(this::toMovementResponse)
+                .toList();
+    }
+
+    public ProductResponse create(ProductRequest request) {
         Store store = storeService.resolveStore(request.storeId());
         validateBusinessRules(request, null, store.getId());
 
@@ -133,12 +147,15 @@ public class ProductService {
             saveMovement(saved, "ENTRADA", saved.getStock(), 0, saved.getStock(), "Estoque inicial");
         }
 
-        return saved;
+        return toResponse(saved);
     }
 
-    public Product update(Long id, ProductRequest request) {
-        Product product = getById(id);
-        Long effectiveStoreId = request.storeId() != null ? request.storeId() : (product.getStore() != null ? product.getStore().getId() : null);
+    public ProductResponse update(Long id, ProductRequest request) {
+        Product product = getEntityById(id);
+        Long effectiveStoreId = request.storeId() != null
+                ? request.storeId()
+                : (product.getStore() != null ? product.getStore().getId() : null);
+
         Store store = storeService.resolveStore(effectiveStoreId);
 
         validateBusinessRules(request, id, store.getId());
@@ -154,18 +171,18 @@ public class ProductService {
         product.setBarcode(normalizeBarcode(request.barcode()));
         product.setStore(store);
 
-        return productRepository.save(product);
+        return toResponse(productRepository.save(product));
     }
 
     public void deactivate(Long id) {
-        Product product = getById(id);
+        Product product = getEntityById(id);
         product.setActive(false);
         productRepository.save(product);
     }
 
     @Transactional
-    public Product addStock(Long id, Integer quantity, String observation) {
-        Product product = getById(id);
+    public ProductResponse addStock(Long id, Integer quantity, String observation) {
+        Product product = getEntityById(id);
 
         if (!Boolean.TRUE.equals(product.getActive())) {
             throw new BusinessException("Não é possível movimentar estoque de produto inativo");
@@ -176,12 +193,12 @@ public class ProductService {
         Product saved = productRepository.save(product);
 
         saveMovement(saved, "ENTRADA", quantity, previous, saved.getStock(), observation);
-        return saved;
+        return toResponse(saved);
     }
 
     @Transactional
-    public Product removeStock(Long id, Integer quantity, String observation) {
-        Product product = getById(id);
+    public ProductResponse removeStock(Long id, Integer quantity, String observation) {
+        Product product = getEntityById(id);
 
         if (!Boolean.TRUE.equals(product.getActive())) {
             throw new BusinessException("Não é possível movimentar estoque de produto inativo");
@@ -196,7 +213,12 @@ public class ProductService {
         Product saved = productRepository.save(product);
 
         saveMovement(saved, "SAIDA", quantity, previous, saved.getStock(), observation);
-        return saved;
+        return toResponse(saved);
+    }
+
+    public Product getEntityById(Long id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
     }
 
     private void validateBusinessRules(ProductRequest request, Long productId, Long storeId) {
@@ -228,7 +250,7 @@ public class ProductService {
         stockMovementRepository.save(movement);
     }
 
-    private StockMovementResponse toResponse(StockMovement movement) {
+    private StockMovementResponse toMovementResponse(StockMovement movement) {
         return new StockMovementResponse(
                 movement.getId(),
                 movement.getProduct() != null ? movement.getProduct().getId() : null,
@@ -239,6 +261,32 @@ public class ProductService {
                 movement.getCurrentStock(),
                 movement.getObservation(),
                 movement.getMovementDate()
+        );
+    }
+
+    private ProductResponse toResponse(Product product) {
+        Long storeId = product.getStore() != null ? product.getStore().getId() : null;
+        String storeName = product.getStore() != null ? product.getStore().getName() : null;
+
+        boolean lowStock = product.getStock() != null
+                && product.getMinimumStock() != null
+                && product.getStock() <= product.getMinimumStock();
+
+        return new ProductResponse(
+                product.getId(),
+                product.getName(),
+                product.getAnimalType(),
+                product.getBrand(),
+                product.getWeight(),
+                product.getCostPrice(),
+                product.getSalePrice(),
+                product.getStock(),
+                product.getMinimumStock(),
+                product.getBarcode(),
+                storeId,
+                storeName,
+                product.getActive(),
+                lowStock
         );
     }
 

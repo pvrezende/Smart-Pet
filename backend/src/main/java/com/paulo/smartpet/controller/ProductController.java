@@ -1,9 +1,9 @@
 package com.paulo.smartpet.controller;
 
 import com.paulo.smartpet.dto.ProductRequest;
+import com.paulo.smartpet.dto.ProductResponse;
 import com.paulo.smartpet.dto.StockAdjustmentRequest;
 import com.paulo.smartpet.dto.StockMovementResponse;
-import com.paulo.smartpet.entity.Product;
 import com.paulo.smartpet.service.ProductService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -21,7 +21,7 @@ public class ProductController {
     }
 
     @GetMapping
-    public List<Product> list(
+    public List<ProductResponse> list(
             @RequestParam(required = false) Long storeId,
             @RequestParam(required = false) String animalType,
             @RequestParam(required = false) Boolean active,
@@ -31,12 +31,12 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
-    public Product get(@PathVariable Long id) {
+    public ProductResponse get(@PathVariable Long id) {
         return productService.getById(id);
     }
 
     @GetMapping("/barcode/{barcode}")
-    public Product getByBarcode(
+    public ProductResponse getByBarcode(
             @PathVariable String barcode,
             @RequestParam(required = false) Long storeId
     ) {
@@ -44,7 +44,7 @@ public class ProductController {
     }
 
     @GetMapping("/barcode-search")
-    public List<Product> searchByBarcode(
+    public List<ProductResponse> searchByBarcode(
             @RequestParam String barcode,
             @RequestParam(required = false) Long storeId
     ) {
@@ -58,12 +58,12 @@ public class ProductController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Product create(@Valid @RequestBody ProductRequest request) {
+    public ProductResponse create(@Valid @RequestBody ProductRequest request) {
         return productService.create(request);
     }
 
     @PutMapping("/{id}")
-    public Product update(@PathVariable Long id, @Valid @RequestBody ProductRequest request) {
+    public ProductResponse update(@PathVariable Long id, @Valid @RequestBody ProductRequest request) {
         return productService.update(id, request);
     }
 
@@ -74,12 +74,12 @@ public class ProductController {
     }
 
     @PostMapping("/{id}/stock/in")
-    public Product stockIn(@PathVariable Long id, @Valid @RequestBody StockAdjustmentRequest request) {
+    public ProductResponse stockIn(@PathVariable Long id, @Valid @RequestBody StockAdjustmentRequest request) {
         return productService.addStock(id, request.quantity(), request.observation());
     }
 
     @PostMapping("/{id}/stock/out")
-    public Product stockOut(@PathVariable Long id, @Valid @RequestBody StockAdjustmentRequest request) {
+    public ProductResponse stockOut(@PathVariable Long id, @Valid @RequestBody StockAdjustmentRequest request) {
         return productService.removeStock(id, request.quantity(), request.observation());
     }
 }
