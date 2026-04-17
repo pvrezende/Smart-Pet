@@ -234,6 +234,11 @@ public class SaleService {
         return toDetailsResponse(sale);
     }
 
+    public Sale getEntityById(Long id) {
+        return saleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada"));
+    }
+
     @Transactional
     public SaleDetailsResponse create(CreateSaleRequest request) {
         return createInternal(
