@@ -1,20 +1,29 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
-import { HttpClientModule } from '@angular/common/http';
+import {
+  HTTP_INTERCEPTORS,
+  HttpClientModule
+} from '@angular/common/http';
 import { RouterModule, Routes } from '@angular/router';
+
 import { AppComponent } from './app.component';
 import { NavbarComponent } from './shared/navbar/navbar.component';
 import { DashboardPageComponent } from './pages/dashboard/dashboard.component';
 import { ProductsPageComponent } from './pages/products/products.component';
 import { CustomersPageComponent } from './pages/customers/customers.component';
 import { SalesPageComponent } from './pages/sales/sales.component';
+import { LoginPageComponent } from './pages/login/login.component';
+import { AuthGuard } from './core/guards/auth.guard';
+import { AuthInterceptor } from './core/interceptors/auth.interceptor';
 
 const routes: Routes = [
-  { path: '', component: DashboardPageComponent },
-  { path: 'products', component: ProductsPageComponent },
-  { path: 'customers', component: CustomersPageComponent },
-  { path: 'sales', component: SalesPageComponent }
+  { path: 'login', component: LoginPageComponent },
+  { path: '', component: DashboardPageComponent, canActivate: [AuthGuard] },
+  { path: 'products', component: ProductsPageComponent, canActivate: [AuthGuard] },
+  { path: 'customers', component: CustomersPageComponent, canActivate: [AuthGuard] },
+  { path: 'sales', component: SalesPageComponent, canActivate: [AuthGuard] },
+  { path: '**', redirectTo: '' }
 ];
 
 @NgModule({
@@ -24,9 +33,23 @@ const routes: Routes = [
     DashboardPageComponent,
     ProductsPageComponent,
     CustomersPageComponent,
-    SalesPageComponent
+    SalesPageComponent,
+    LoginPageComponent
   ],
-  imports: [BrowserModule, FormsModule, HttpClientModule, RouterModule.forRoot(routes)],
+  imports: [
+    BrowserModule,
+    FormsModule,
+    HttpClientModule,
+    RouterModule.forRoot(routes)
+  ],
+  providers: [
+    AuthGuard,
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: AuthInterceptor,
+      multi: true
+    }
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule {}
