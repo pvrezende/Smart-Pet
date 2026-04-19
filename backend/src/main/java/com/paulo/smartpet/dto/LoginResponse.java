@@ -7,6 +7,8 @@ public record LoginResponse(
         String name,
         String username,
         UserRole role,
+        Long storeId,
+        String storeName,
         Boolean active,
         String token,
         String message

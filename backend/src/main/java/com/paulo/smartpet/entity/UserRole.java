@@ -1,6 +1,8 @@
 package com.paulo.smartpet.entity;
 
 public enum UserRole {
-    ADMIN,
+    ADMIN,         // legado temporário para compatibilidade
+    SUPER_ADMIN,
+    ADMIN_STORE,
     ATTENDANT
 }

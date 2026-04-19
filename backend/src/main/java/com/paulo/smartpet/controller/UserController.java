@@ -1,7 +1,5 @@
 package com.paulo.smartpet.controller;
 
-import com.paulo.smartpet.dto.ApiPageResponse;
-import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.CreateUserRequest;
 import com.paulo.smartpet.dto.UserResponse;
 import com.paulo.smartpet.service.UserService;
@@ -22,21 +20,8 @@ public class UserController {
     }
 
     @GetMapping
-    public List<UserResponse> list() {
-        return userService.list();
-    }
-
-    @GetMapping("/page")
-    public ApiPageResponse<UserResponse> listPaged(
-            @RequestParam(required = false) Boolean active,
-            @RequestParam(required = false) String role,
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) Integer page,
-            @RequestParam(required = false) Integer size,
-            @RequestParam(required = false) String sortBy,
-            @RequestParam(required = false) String sortDir
-    ) {
-        return userService.listPaged(active, role, search, page, size, sortBy, sortDir);
+    public List<UserResponse> list(@RequestParam(required = false) Long storeId) {
+        return userService.list(storeId);
     }
 
     @GetMapping("/{id}")
@@ -46,8 +31,8 @@ public class UserController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiSuccessResponse<UserResponse> create(@Valid @RequestBody CreateUserRequest request) {
-        return ApiSuccessResponse.of("Usuário criado com sucesso", userService.create(request));
+    public UserResponse create(@Valid @RequestBody CreateUserRequest request) {
+        return userService.create(request);
     }
 
     @PatchMapping("/{id}/deactivate")

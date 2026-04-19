@@ -7,6 +7,8 @@ public record UserResponse(
         String name,
         String username,
         UserRole role,
+        Long storeId,
+        String storeName,
         Boolean active
 ) {
 }

@@ -1,5 +1,6 @@
 package com.paulo.smartpet.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 @Entity
@@ -23,18 +24,24 @@ public class User {
     @Column(nullable = false, length = 20)
     private UserRole role;
 
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
+    private Store store;
+
     @Column(nullable = false)
     private Boolean active = true;
 
     public User() {
     }
 
-    public User(Long id, String name, String username, String password, UserRole role, Boolean active) {
+    public User(Long id, String name, String username, String password, UserRole role, Store store, Boolean active) {
         this.id = id;
         this.name = name;
         this.username = username;
         this.password = password;
         this.role = role;
+        this.store = store;
         this.active = active;
     }
 
@@ -56,6 +63,10 @@ public class User {
 
     public UserRole getRole() {
         return role;
+    }
+
+    public Store getStore() {
+        return store;
     }
 
     public Boolean getActive() {
@@ -80,6 +91,10 @@ public class User {
 
     public void setRole(UserRole role) {
         this.role = role;
+    }
+
+    public void setStore(Store store) {
+        this.store = store;
     }
 
     public void setActive(Boolean active) {

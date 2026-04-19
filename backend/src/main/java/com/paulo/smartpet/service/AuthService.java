@@ -49,6 +49,8 @@ public class AuthService {
                 user.getName(),
                 user.getUsername(),
                 user.getRole(),
+                user.getStore() != null ? user.getStore().getId() : null,
+                user.getStore() != null ? user.getStore().getName() : null,
                 user.getActive(),
                 token,
                 "Login realizado com sucesso"

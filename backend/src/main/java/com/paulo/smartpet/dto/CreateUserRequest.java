@@ -20,6 +20,8 @@ public record CreateUserRequest(
         String password,
 
         @NotNull(message = "Perfil é obrigatório")
-        UserRole role
+        UserRole role,
+
+        Long storeId
 ) {
 }
