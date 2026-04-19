@@ -1,7 +1,10 @@
 package com.paulo.smartpet.controller;
 
+import com.paulo.smartpet.dto.StoreOnboardingRequest;
+import com.paulo.smartpet.dto.StoreOnboardingResponse;
 import com.paulo.smartpet.dto.StoreRequest;
 import com.paulo.smartpet.dto.StoreResponse;
+import com.paulo.smartpet.service.StoreOnboardingService;
 import com.paulo.smartpet.service.StoreService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -16,9 +19,11 @@ import java.util.List;
 public class StoreController {
 
     private final StoreService storeService;
+    private final StoreOnboardingService storeOnboardingService;
 
-    public StoreController(StoreService storeService) {
+    public StoreController(StoreService storeService, StoreOnboardingService storeOnboardingService) {
         this.storeService = storeService;
+        this.storeOnboardingService = storeOnboardingService;
     }
 
     @GetMapping
@@ -35,6 +40,12 @@ public class StoreController {
     @ResponseStatus(HttpStatus.CREATED)
     public StoreResponse create(@Valid @RequestBody StoreRequest request) {
         return storeService.create(request);
+    }
+
+    @PostMapping("/onboarding")
+    @ResponseStatus(HttpStatus.CREATED)
+    public StoreOnboardingResponse onboard(@Valid @RequestBody StoreOnboardingRequest request) {
+        return storeOnboardingService.onboard(request);
     }
 
     @PutMapping("/{id}")
