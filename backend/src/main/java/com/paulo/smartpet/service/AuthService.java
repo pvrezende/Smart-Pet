@@ -1,9 +1,11 @@
 package com.paulo.smartpet.service;
 
+import com.paulo.smartpet.dto.AuthMeResponse;
 import com.paulo.smartpet.dto.LoginRequest;
 import com.paulo.smartpet.dto.LoginResponse;
 import com.paulo.smartpet.entity.User;
 import com.paulo.smartpet.exception.BusinessException;
+import com.paulo.smartpet.exception.ResourceNotFoundException;
 import com.paulo.smartpet.repository.UserRepository;
 import com.paulo.smartpet.security.JwtService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -42,7 +44,7 @@ public class AuthService {
             throw new BusinessException("Usuário ou senha inválidos");
         }
 
-        String token = jwtService.generateToken(user.getUsername());
+        String token = jwtService.generateToken(user);
 
         return new LoginResponse(
                 user.getId(),
@@ -54,6 +56,21 @@ public class AuthService {
                 user.getActive(),
                 token,
                 "Login realizado com sucesso"
+        );
+    }
+
+    public AuthMeResponse me(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário autenticado não encontrado"));
+
+        return new AuthMeResponse(
+                user.getId(),
+                user.getName(),
+                user.getUsername(),
+                user.getRole(),
+                user.getStore() != null ? user.getStore().getId() : null,
+                user.getStore() != null ? user.getStore().getName() : null,
+                user.getActive()
         );
     }
 }
