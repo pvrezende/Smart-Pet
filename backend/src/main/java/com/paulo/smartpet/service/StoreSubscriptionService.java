@@ -1,14 +1,17 @@
 package com.paulo.smartpet.service;
 
 import com.paulo.smartpet.dto.StoreFeatureAvailabilityResponse;
+import com.paulo.smartpet.dto.StoreSubscriptionHistoryResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionUpdateRequest;
 import com.paulo.smartpet.entity.Store;
 import com.paulo.smartpet.entity.StoreSubscription;
+import com.paulo.smartpet.entity.StoreSubscriptionHistory;
 import com.paulo.smartpet.entity.SubscriptionPlan;
 import com.paulo.smartpet.entity.SubscriptionStatus;
 import com.paulo.smartpet.exception.ResourceNotFoundException;
 import com.paulo.smartpet.repository.StoreRepository;
+import com.paulo.smartpet.repository.StoreSubscriptionHistoryRepository;
 import com.paulo.smartpet.repository.StoreSubscriptionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,15 +27,18 @@ public class StoreSubscriptionService {
     private final StoreSubscriptionRepository storeSubscriptionRepository;
     private final StoreRepository storeRepository;
     private final SaasPlanFeatureService saasPlanFeatureService;
+    private final StoreSubscriptionHistoryRepository storeSubscriptionHistoryRepository;
 
     public StoreSubscriptionService(
             StoreSubscriptionRepository storeSubscriptionRepository,
             StoreRepository storeRepository,
-            SaasPlanFeatureService saasPlanFeatureService
+            SaasPlanFeatureService saasPlanFeatureService,
+            StoreSubscriptionHistoryRepository storeSubscriptionHistoryRepository
     ) {
         this.storeSubscriptionRepository = storeSubscriptionRepository;
         this.storeRepository = storeRepository;
         this.saasPlanFeatureService = saasPlanFeatureService;
+        this.storeSubscriptionHistoryRepository = storeSubscriptionHistoryRepository;
     }
 
     public List<StoreSubscriptionResponse> list() {
@@ -59,6 +65,15 @@ public class StoreSubscriptionService {
         );
     }
 
+    public List<StoreSubscriptionHistoryResponse> getHistoryByStoreId(Long storeId) {
+        ensureStoreExists(storeId);
+
+        return storeSubscriptionHistoryRepository.findByStoreIdOrderByChangedAtDesc(storeId)
+                .stream()
+                .map(this::toHistoryResponse)
+                .toList();
+    }
+
     @Transactional
     public StoreSubscription ensureSubscriptionExistsForStore(Store store) {
         return storeSubscriptionRepository.findByStoreId(store.getId())
@@ -74,7 +89,18 @@ public class StoreSubscriptionService {
                     subscription.setSubscriptionEndsAt(null);
                     subscription.setNotes("Assinatura inicial criada automaticamente");
 
-                    return storeSubscriptionRepository.save(subscription);
+                    StoreSubscription saved = storeSubscriptionRepository.save(subscription);
+
+                    saveHistory(
+                            store,
+                            null,
+                            saved.getPlan(),
+                            null,
+                            saved.getStatus(),
+                            "Criação inicial automática da assinatura SaaS"
+                    );
+
+                    return saved;
                 });
     }
 
@@ -86,6 +112,9 @@ public class StoreSubscriptionService {
     @Transactional
     public StoreSubscriptionResponse updateByStoreId(Long storeId, StoreSubscriptionUpdateRequest request) {
         StoreSubscription subscription = getEntityByStoreId(storeId);
+
+        SubscriptionPlan previousPlan = subscription.getPlan();
+        SubscriptionStatus previousStatus = subscription.getStatus();
 
         subscription.setPlan(request.plan());
         subscription.setStatus(request.status());
@@ -102,7 +131,20 @@ public class StoreSubscriptionService {
 
         subscription.setNotes(normalizeBlank(request.notes()));
 
-        return toResponse(storeSubscriptionRepository.save(subscription));
+        StoreSubscription saved = storeSubscriptionRepository.save(subscription);
+
+        if (previousPlan != saved.getPlan() || previousStatus != saved.getStatus() || hasText(request.notes())) {
+            saveHistory(
+                    saved.getStore(),
+                    previousPlan,
+                    saved.getPlan(),
+                    previousStatus,
+                    saved.getStatus(),
+                    saved.getNotes()
+            );
+        }
+
+        return toResponse(saved);
     }
 
     public StoreSubscription getEntityByStoreId(Long storeId) {
@@ -115,6 +157,24 @@ public class StoreSubscriptionService {
     private void ensureStoreExists(Long storeId) {
         storeRepository.findById(storeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Loja não encontrada"));
+    }
+
+    private void saveHistory(
+            Store store,
+            SubscriptionPlan previousPlan,
+            SubscriptionPlan newPlan,
+            SubscriptionStatus previousStatus,
+            SubscriptionStatus newStatus,
+            String notes
+    ) {
+        StoreSubscriptionHistory history = new StoreSubscriptionHistory();
+        history.setStore(store);
+        history.setPreviousPlan(previousPlan);
+        history.setNewPlan(newPlan);
+        history.setPreviousStatus(previousStatus);
+        history.setNewStatus(newStatus);
+        history.setNotes(normalizeBlank(notes));
+        storeSubscriptionHistoryRepository.save(history);
     }
 
     private StoreSubscriptionResponse toResponse(StoreSubscription subscription) {
@@ -149,7 +209,25 @@ public class StoreSubscriptionService {
         );
     }
 
+    private StoreSubscriptionHistoryResponse toHistoryResponse(StoreSubscriptionHistory history) {
+        return new StoreSubscriptionHistoryResponse(
+                history.getId(),
+                history.getStore() != null ? history.getStore().getId() : null,
+                history.getStore() != null ? history.getStore().getName() : null,
+                history.getPreviousPlan(),
+                history.getNewPlan(),
+                history.getPreviousStatus(),
+                history.getNewStatus(),
+                history.getNotes(),
+                history.getChangedAt()
+        );
+    }
+
     private String normalizeBlank(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

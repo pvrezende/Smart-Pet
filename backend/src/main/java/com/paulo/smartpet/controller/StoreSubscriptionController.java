@@ -2,6 +2,7 @@ package com.paulo.smartpet.controller;
 
 import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.StoreFeatureAvailabilityResponse;
+import com.paulo.smartpet.dto.StoreSubscriptionHistoryResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionUpdateRequest;
 import com.paulo.smartpet.service.StoreSubscriptionService;
@@ -35,6 +36,11 @@ public class StoreSubscriptionController {
     @GetMapping("/store/{storeId}/features")
     public StoreFeatureAvailabilityResponse getFeatureAvailabilityByStoreId(@PathVariable Long storeId) {
         return storeSubscriptionService.getFeatureAvailabilityByStoreId(storeId);
+    }
+
+    @GetMapping("/store/{storeId}/history")
+    public List<StoreSubscriptionHistoryResponse> getHistoryByStoreId(@PathVariable Long storeId) {
+        return storeSubscriptionService.getHistoryByStoreId(storeId);
     }
 
     @PutMapping("/store/{storeId}")
