@@ -1,5 +1,6 @@
 package com.paulo.smartpet.service;
 
+import com.paulo.smartpet.dto.StoreBillingSummaryResponse;
 import com.paulo.smartpet.dto.StoreFeatureAvailabilityResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionHistoryResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionResponse;
@@ -16,6 +17,7 @@ import com.paulo.smartpet.repository.StoreSubscriptionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -23,22 +25,26 @@ import java.util.List;
 public class StoreSubscriptionService {
 
     private static final int DEFAULT_TRIAL_DAYS = 15;
+    private static final int DEFAULT_BILLING_DAY = 10;
 
     private final StoreSubscriptionRepository storeSubscriptionRepository;
     private final StoreRepository storeRepository;
     private final SaasPlanFeatureService saasPlanFeatureService;
     private final StoreSubscriptionHistoryRepository storeSubscriptionHistoryRepository;
+    private final SaasBillingService saasBillingService;
 
     public StoreSubscriptionService(
             StoreSubscriptionRepository storeSubscriptionRepository,
             StoreRepository storeRepository,
             SaasPlanFeatureService saasPlanFeatureService,
-            StoreSubscriptionHistoryRepository storeSubscriptionHistoryRepository
+            StoreSubscriptionHistoryRepository storeSubscriptionHistoryRepository,
+            SaasBillingService saasBillingService
     ) {
         this.storeSubscriptionRepository = storeSubscriptionRepository;
         this.storeRepository = storeRepository;
         this.saasPlanFeatureService = saasPlanFeatureService;
         this.storeSubscriptionHistoryRepository = storeSubscriptionHistoryRepository;
+        this.saasBillingService = saasBillingService;
     }
 
     public List<StoreSubscriptionResponse> list() {
@@ -74,6 +80,10 @@ public class StoreSubscriptionService {
                 .toList();
     }
 
+    public StoreBillingSummaryResponse getBillingSummaryByStoreId(Long storeId) {
+        return saasBillingService.toBillingSummary(getEntityByStoreId(storeId));
+    }
+
     @Transactional
     public StoreSubscription ensureSubscriptionExistsForStore(Store store) {
         return storeSubscriptionRepository.findByStoreId(store.getId())
@@ -84,9 +94,13 @@ public class StoreSubscriptionService {
                     subscription.setStore(store);
                     subscription.setPlan(SubscriptionPlan.BASIC);
                     subscription.setStatus(SubscriptionStatus.TRIAL);
+                    subscription.setBillingStatus(saasBillingService.resolveInitialBillingStatus(SubscriptionStatus.TRIAL));
                     subscription.setStartsAt(now);
                     subscription.setTrialEndsAt(now.plusDays(DEFAULT_TRIAL_DAYS));
                     subscription.setSubscriptionEndsAt(null);
+                    subscription.setBillingDay(DEFAULT_BILLING_DAY);
+                    subscription.setNextBillingDate(saasBillingService.calculateNextBillingDate(DEFAULT_BILLING_DAY, LocalDate.now()));
+                    subscription.setMonthlyPrice(saasBillingService.getMonthlyPrice(SubscriptionPlan.BASIC));
                     subscription.setNotes("Assinatura inicial criada automaticamente");
 
                     StoreSubscription saved = storeSubscriptionRepository.save(subscription);
@@ -106,7 +120,36 @@ public class StoreSubscriptionService {
 
     @Transactional
     public void ensureSubscriptionsForAllStores() {
-        storeRepository.findAll().forEach(this::ensureSubscriptionExistsForStore);
+        storeRepository.findAll().forEach(subscriptionStore -> {
+            StoreSubscription subscription = ensureSubscriptionExistsForStore(subscriptionStore);
+            boolean changed = false;
+
+            if (subscription.getBillingDay() == null) {
+                subscription.setBillingDay(DEFAULT_BILLING_DAY);
+                changed = true;
+            }
+
+            if (subscription.getNextBillingDate() == null) {
+                subscription.setNextBillingDate(
+                        saasBillingService.calculateNextBillingDate(subscription.getBillingDay(), LocalDate.now())
+                );
+                changed = true;
+            }
+
+            if (subscription.getMonthlyPrice() == null) {
+                subscription.setMonthlyPrice(saasBillingService.getMonthlyPrice(subscription.getPlan()));
+                changed = true;
+            }
+
+            if (subscription.getBillingStatus() == null) {
+                subscription.setBillingStatus(saasBillingService.resolveInitialBillingStatus(subscription.getStatus()));
+                changed = true;
+            }
+
+            if (changed) {
+                storeSubscriptionRepository.save(subscription);
+            }
+        });
     }
 
     @Transactional
@@ -118,6 +161,7 @@ public class StoreSubscriptionService {
 
         subscription.setPlan(request.plan());
         subscription.setStatus(request.status());
+        subscription.setBillingStatus(request.billingStatus());
         subscription.setStartsAt(request.startsAt());
         subscription.setTrialEndsAt(request.trialEndsAt());
 
@@ -129,6 +173,18 @@ public class StoreSubscriptionService {
             subscription.setSubscriptionEndsAt(null);
         }
 
+        Integer billingDay = request.billingDay() == null ? DEFAULT_BILLING_DAY : request.billingDay();
+        subscription.setBillingDay(billingDay);
+
+        if (request.nextBillingDate() != null) {
+            subscription.setNextBillingDate(request.nextBillingDate());
+        } else {
+            subscription.setNextBillingDate(
+                    saasBillingService.calculateNextBillingDate(billingDay, LocalDate.now())
+            );
+        }
+
+        subscription.setMonthlyPrice(saasBillingService.getMonthlyPrice(request.plan()));
         subscription.setNotes(normalizeBlank(request.notes()));
 
         StoreSubscription saved = storeSubscriptionRepository.save(subscription);
@@ -200,9 +256,13 @@ public class StoreSubscriptionService {
                 subscription.getStore() != null ? subscription.getStore().getName() : null,
                 subscription.getPlan(),
                 subscription.getStatus(),
+                subscription.getBillingStatus(),
                 subscription.getStartsAt(),
                 subscription.getTrialEndsAt(),
                 subscription.getSubscriptionEndsAt(),
+                subscription.getBillingDay(),
+                subscription.getNextBillingDate(),
+                subscription.getMonthlyPrice(),
                 subscription.getNotes(),
                 inTrial,
                 activeAccess,

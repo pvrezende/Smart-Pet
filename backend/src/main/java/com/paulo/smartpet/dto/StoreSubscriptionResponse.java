@@ -1,9 +1,12 @@
 package com.paulo.smartpet.dto;
 
+import com.paulo.smartpet.entity.BillingStatus;
 import com.paulo.smartpet.entity.SaasFeature;
 import com.paulo.smartpet.entity.SubscriptionPlan;
 import com.paulo.smartpet.entity.SubscriptionStatus;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -13,9 +16,13 @@ public record StoreSubscriptionResponse(
         String storeName,
         SubscriptionPlan plan,
         SubscriptionStatus status,
+        BillingStatus billingStatus,
         LocalDateTime startsAt,
         LocalDateTime trialEndsAt,
         LocalDateTime subscriptionEndsAt,
+        Integer billingDay,
+        LocalDate nextBillingDate,
+        BigDecimal monthlyPrice,
         String notes,
         Boolean inTrial,
         Boolean activeAccess,

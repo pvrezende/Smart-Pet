@@ -1,6 +1,7 @@
 package com.paulo.smartpet.controller;
 
 import com.paulo.smartpet.dto.ApiSuccessResponse;
+import com.paulo.smartpet.dto.StoreBillingSummaryResponse;
 import com.paulo.smartpet.dto.StoreFeatureAvailabilityResponse;
 import com.paulo.smartpet.dto.StorePlanLimitsResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionHistoryResponse;
@@ -53,6 +54,11 @@ public class StoreSubscriptionController {
     @GetMapping("/store/{storeId}/limits")
     public StorePlanLimitsResponse getLimitsByStoreId(@PathVariable Long storeId) {
         return storePlanLimitService.getLimitsByStoreId(storeId);
+    }
+
+    @GetMapping("/store/{storeId}/billing")
+    public StoreBillingSummaryResponse getBillingSummaryByStoreId(@PathVariable Long storeId) {
+        return storeSubscriptionService.getBillingSummaryByStoreId(storeId);
     }
 
     @PutMapping("/store/{storeId}")
