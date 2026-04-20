@@ -5,6 +5,7 @@ import com.paulo.smartpet.dto.StoreFeatureAvailabilityResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionHistoryResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionUpdateRequest;
+import com.paulo.smartpet.entity.BillingStatus;
 import com.paulo.smartpet.entity.Store;
 import com.paulo.smartpet.entity.StoreSubscription;
 import com.paulo.smartpet.entity.StoreSubscriptionHistory;
@@ -82,6 +83,11 @@ public class StoreSubscriptionService {
 
     public StoreBillingSummaryResponse getBillingSummaryByStoreId(Long storeId) {
         return saasBillingService.toBillingSummary(getEntityByStoreId(storeId));
+    }
+
+    public boolean isBillingBlocked(Long storeId) {
+        StoreSubscription subscription = getEntityByStoreId(storeId);
+        return subscription.getBillingStatus() == BillingStatus.OVERDUE;
     }
 
     @Transactional

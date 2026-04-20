@@ -1,8 +1,8 @@
 package com.paulo.smartpet.exception;
 
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.paulo.smartpet.dto.ApiErrorResponse;
 import com.paulo.smartpet.dto.FieldValidationError;
-import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +64,23 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SaasAccessDeniedException.class)
     public ResponseEntity<ApiErrorResponse> handleSaasAccessDenied(
             SaasAccessDeniedException ex,
+            HttpServletRequest request
+    ) {
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.FORBIDDEN.value(),
+                HttpStatus.FORBIDDEN.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                List.of()
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(BillingAccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleBillingAccessDenied(
+            BillingAccessDeniedException ex,
             HttpServletRequest request
     ) {
         ApiErrorResponse response = new ApiErrorResponse(

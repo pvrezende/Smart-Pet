@@ -22,19 +22,22 @@ public class UserService {
     private final StoreService storeService;
     private final AuthenticatedUserService authenticatedUserService;
     private final StorePlanLimitService storePlanLimitService;
+    private final SaasAccessControlService saasAccessControlService;
 
     public UserService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             StoreService storeService,
             AuthenticatedUserService authenticatedUserService,
-            StorePlanLimitService storePlanLimitService
+            StorePlanLimitService storePlanLimitService,
+            SaasAccessControlService saasAccessControlService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.storeService = storeService;
         this.authenticatedUserService = authenticatedUserService;
         this.storePlanLimitService = storePlanLimitService;
+        this.saasAccessControlService = saasAccessControlService;
     }
 
     public List<UserResponse> list(Long storeId) {
@@ -52,6 +55,8 @@ public class UserService {
         }
 
         if (authenticatedUserService.isStoreAdmin(currentUser)) {
+            saasAccessControlService.validateCurrentUserOperationalAccess();
+
             Long currentStoreId = authenticatedUserService.getRequiredStoreId(currentUser);
 
             if (storeId != null && !storeId.equals(currentStoreId)) {
@@ -78,6 +83,8 @@ public class UserService {
         }
 
         if (authenticatedUserService.isStoreAdmin(currentUser)) {
+            saasAccessControlService.validateCurrentUserOperationalAccess();
+
             Long currentStoreId = authenticatedUserService.getRequiredStoreId(currentUser);
             Long targetStoreId = targetUser.getStore() != null ? targetUser.getStore().getId() : null;
 
@@ -131,6 +138,8 @@ public class UserService {
         }
 
         if (authenticatedUserService.isStoreAdmin(currentUser)) {
+            saasAccessControlService.validateCurrentUserOperationalAccess();
+
             Long currentStoreId = authenticatedUserService.getRequiredStoreId(currentUser);
             Long targetStoreId = targetUser.getStore() != null ? targetUser.getStore().getId() : null;
 
@@ -172,6 +181,8 @@ public class UserService {
         }
 
         if (authenticatedUserService.isStoreAdmin(currentUser)) {
+            saasAccessControlService.validateCurrentUserOperationalAccess();
+
             if (request.role() != UserRole.ATTENDANT) {
                 throw new BusinessException("Admin da loja só pode criar usuários do tipo ATTENDANT");
             }

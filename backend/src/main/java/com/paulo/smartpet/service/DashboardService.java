@@ -37,6 +37,7 @@ public class DashboardService {
     private final StoreRepository storeRepository;
     private final StoreService storeService;
     private final StoreFeatureAccessService storeFeatureAccessService;
+    private final SaasAccessControlService saasAccessControlService;
 
     public DashboardService(
             ProductRepository productRepository,
@@ -44,7 +45,8 @@ public class DashboardService {
             SaleRepository saleRepository,
             StoreRepository storeRepository,
             StoreService storeService,
-            StoreFeatureAccessService storeFeatureAccessService
+            StoreFeatureAccessService storeFeatureAccessService,
+            SaasAccessControlService saasAccessControlService
     ) {
         this.productRepository = productRepository;
         this.customerRepository = customerRepository;
@@ -52,9 +54,12 @@ public class DashboardService {
         this.storeRepository = storeRepository;
         this.storeService = storeService;
         this.storeFeatureAccessService = storeFeatureAccessService;
+        this.saasAccessControlService = saasAccessControlService;
     }
 
     public DashboardResponse getDashboard(Long storeId) {
+        saasAccessControlService.validateCurrentUserOperationalAccess();
+
         Store store = storeService.resolveStore(storeId);
         List<Product> products = productRepository.findByStoreIdAndActiveTrueOrderByNameAsc(store.getId());
 
@@ -109,6 +114,8 @@ public class DashboardService {
     }
 
     public MobileDashboardResponse getMobileDashboard(Long storeId) {
+        saasAccessControlService.validateCurrentUserOperationalAccess();
+
         Store store = storeService.resolveStore(storeId);
         List<Product> products = productRepository.findByStoreIdAndActiveTrueOrderByNameAsc(store.getId());
 
@@ -154,6 +161,7 @@ public class DashboardService {
     }
 
     public ReportsAnalyticsResponse getReportsAnalytics(Long storeId) {
+        saasAccessControlService.validateCurrentUserOperationalAccess();
         storeFeatureAccessService.validateCurrentUserAccess(SaasFeature.ADVANCED_ANALYTICS);
 
         Store baseStore = storeId != null ? storeService.resolveStore(storeId) : null;

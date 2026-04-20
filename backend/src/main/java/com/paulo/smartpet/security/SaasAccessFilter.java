@@ -1,50 +1,22 @@
 package com.paulo.smartpet.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.paulo.smartpet.dto.ApiErrorResponse;
-import com.paulo.smartpet.entity.User;
-import com.paulo.smartpet.exception.SaasAccessDeniedException;
-import com.paulo.smartpet.repository.UserRepository;
-import com.paulo.smartpet.service.StoreAccessGuardService;
+import com.paulo.smartpet.service.SaasAccessControlService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.util.List;
 
 @Component
 public class SaasAccessFilter extends OncePerRequestFilter {
 
-    private final UserRepository userRepository;
-    private final StoreAccessGuardService storeAccessGuardService;
-    private final ObjectMapper objectMapper;
+    private final SaasAccessControlService saasAccessControlService;
 
-    public SaasAccessFilter(
-            UserRepository userRepository,
-            StoreAccessGuardService storeAccessGuardService,
-            ObjectMapper objectMapper
-    ) {
-        this.userRepository = userRepository;
-        this.storeAccessGuardService = storeAccessGuardService;
-        this.objectMapper = objectMapper;
-    }
-
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
-
-        return path.startsWith("/api/auth/")
-                || path.startsWith("/h2-console")
-                || "OPTIONS".equalsIgnoreCase(request.getMethod());
+    public SaasAccessFilter(SaasAccessControlService saasAccessControlService) {
+        this.saasAccessControlService = saasAccessControlService;
     }
 
     @Override
@@ -54,42 +26,25 @@ public class SaasAccessFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String uri = request.getRequestURI();
 
-        if (authentication == null
-                || authentication.getName() == null
-                || authentication.getName().isBlank()
-                || !authentication.isAuthenticated()) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        String username = authentication.getName().trim().toLowerCase();
-
-        User user = userRepository.findByUsername(username).orElse(null);
-
-        if (user == null) {
+        if (shouldSkip(uri)) {
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
-            storeAccessGuardService.validateOperationalAccess(user);
+            saasAccessControlService.validateCurrentUserOperationalAccess();
             filterChain.doFilter(request, response);
-        } catch (SaasAccessDeniedException ex) {
-            ApiErrorResponse errorResponse = new ApiErrorResponse(
-                    LocalDateTime.now(),
-                    HttpStatus.FORBIDDEN.value(),
-                    HttpStatus.FORBIDDEN.getReasonPhrase(),
-                    ex.getMessage(),
-                    request.getRequestURI(),
-                    List.of()
-            );
-
-            response.setStatus(HttpStatus.FORBIDDEN.value());
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.setCharacterEncoding("UTF-8");
-            objectMapper.writeValue(response.getWriter(), errorResponse);
+        } catch (RuntimeException ex) {
+            throw ex;
         }
+    }
+
+    private boolean shouldSkip(String uri) {
+        return uri.startsWith("/api/auth/")
+                || uri.startsWith("/h2-console")
+                || uri.startsWith("/error")
+                || uri.startsWith("/actuator");
     }
 }
