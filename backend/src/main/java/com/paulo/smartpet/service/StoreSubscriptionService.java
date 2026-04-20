@@ -1,5 +1,6 @@
 package com.paulo.smartpet.service;
 
+import com.paulo.smartpet.dto.StoreFeatureAvailabilityResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionUpdateRequest;
 import com.paulo.smartpet.entity.Store;
@@ -22,13 +23,16 @@ public class StoreSubscriptionService {
 
     private final StoreSubscriptionRepository storeSubscriptionRepository;
     private final StoreRepository storeRepository;
+    private final SaasPlanFeatureService saasPlanFeatureService;
 
     public StoreSubscriptionService(
             StoreSubscriptionRepository storeSubscriptionRepository,
-            StoreRepository storeRepository
+            StoreRepository storeRepository,
+            SaasPlanFeatureService saasPlanFeatureService
     ) {
         this.storeSubscriptionRepository = storeSubscriptionRepository;
         this.storeRepository = storeRepository;
+        this.saasPlanFeatureService = saasPlanFeatureService;
     }
 
     public List<StoreSubscriptionResponse> list() {
@@ -40,6 +44,19 @@ public class StoreSubscriptionService {
 
     public StoreSubscriptionResponse getByStoreId(Long storeId) {
         return toResponse(getEntityByStoreId(storeId));
+    }
+
+    public StoreFeatureAvailabilityResponse getFeatureAvailabilityByStoreId(Long storeId) {
+        StoreSubscription subscription = getEntityByStoreId(storeId);
+
+        return new StoreFeatureAvailabilityResponse(
+                subscription.getStore().getId(),
+                subscription.getStore().getName(),
+                subscription.getPlan(),
+                subscription.getStatus(),
+                saasPlanFeatureService.getEnabledFeatures(subscription.getPlan()),
+                saasPlanFeatureService.getDisabledFeatures(subscription.getPlan())
+        );
     }
 
     @Transactional
@@ -125,6 +142,8 @@ public class StoreSubscriptionService {
                 subscription.getNotes(),
                 inTrial,
                 activeAccess,
+                saasPlanFeatureService.getEnabledFeatures(subscription.getPlan()),
+                saasPlanFeatureService.getDisabledFeatures(subscription.getPlan()),
                 subscription.getCreatedAt(),
                 subscription.getUpdatedAt()
         );

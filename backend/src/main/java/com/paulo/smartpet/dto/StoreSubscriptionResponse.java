@@ -1,9 +1,11 @@
 package com.paulo.smartpet.dto;
 
+import com.paulo.smartpet.entity.SaasFeature;
 import com.paulo.smartpet.entity.SubscriptionPlan;
 import com.paulo.smartpet.entity.SubscriptionStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record StoreSubscriptionResponse(
         Long id,
@@ -17,6 +19,8 @@ public record StoreSubscriptionResponse(
         String notes,
         Boolean inTrial,
         Boolean activeAccess,
+        List<SaasFeature> enabledFeatures,
+        List<SaasFeature> disabledFeatures,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

@@ -2,7 +2,6 @@ package com.paulo.smartpet.service;
 
 import com.paulo.smartpet.entity.SaasFeature;
 import com.paulo.smartpet.entity.StoreSubscription;
-import com.paulo.smartpet.entity.SubscriptionPlan;
 import com.paulo.smartpet.entity.User;
 import com.paulo.smartpet.entity.UserRole;
 import com.paulo.smartpet.exception.FeatureNotAvailableException;
@@ -13,13 +12,16 @@ public class StoreFeatureAccessService {
 
     private final AuthenticatedUserService authenticatedUserService;
     private final StoreSubscriptionService storeSubscriptionService;
+    private final SaasPlanFeatureService saasPlanFeatureService;
 
     public StoreFeatureAccessService(
             AuthenticatedUserService authenticatedUserService,
-            StoreSubscriptionService storeSubscriptionService
+            StoreSubscriptionService storeSubscriptionService,
+            SaasPlanFeatureService saasPlanFeatureService
     ) {
         this.authenticatedUserService = authenticatedUserService;
         this.storeSubscriptionService = storeSubscriptionService;
+        this.saasPlanFeatureService = saasPlanFeatureService;
     }
 
     public void validateCurrentUserAccess(SaasFeature feature) {
@@ -32,25 +34,15 @@ public class StoreFeatureAccessService {
         Long storeId = authenticatedUserService.getRequiredStoreId(currentUser);
         StoreSubscription subscription = storeSubscriptionService.getEntityByStoreId(storeId);
 
-        if (!hasFeature(subscription.getPlan(), feature)) {
-            throw new FeatureNotAvailableException(buildMessage(feature, subscription.getPlan()));
+        if (!saasPlanFeatureService.hasFeature(subscription.getPlan(), feature)) {
+            throw new FeatureNotAvailableException(buildMessage(feature, subscription.getPlan().name()));
         }
     }
 
-    public boolean hasFeature(SubscriptionPlan plan, SaasFeature feature) {
-        if (plan == null || feature == null) {
-            return false;
-        }
-
-        return switch (feature) {
-            case ADVANCED_ANALYTICS -> plan == SubscriptionPlan.PRO || plan == SubscriptionPlan.ENTERPRISE;
-        };
-    }
-
-    private String buildMessage(SaasFeature feature, SubscriptionPlan plan) {
+    private String buildMessage(SaasFeature feature, String planName) {
         return switch (feature) {
             case ADVANCED_ANALYTICS ->
-                    "Recurso indisponível no plano atual (" + plan + "). Faça upgrade para PRO ou ENTERPRISE";
+                    "Recurso indisponível no plano atual (" + planName + "). Faça upgrade para PRO ou ENTERPRISE";
         };
     }
 }
