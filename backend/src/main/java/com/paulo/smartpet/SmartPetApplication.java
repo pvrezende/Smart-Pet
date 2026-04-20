@@ -7,6 +7,7 @@ import com.paulo.smartpet.repository.CustomerRepository;
 import com.paulo.smartpet.repository.ProductRepository;
 import com.paulo.smartpet.service.CompanySettingsService;
 import com.paulo.smartpet.service.StoreService;
+import com.paulo.smartpet.service.StoreSubscriptionService;
 import com.paulo.smartpet.service.UserService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -26,7 +27,8 @@ public class SmartPetApplication {
             CustomerRepository customerRepository,
             UserService userService,
             CompanySettingsService companySettingsService,
-            StoreService storeService
+            StoreService storeService,
+            StoreSubscriptionService storeSubscriptionService
     ) {
         return args -> {
             Store defaultStore = storeService.ensureDefaultStoreExists();
@@ -58,6 +60,8 @@ public class SmartPetApplication {
 
             userService.ensureDefaultAdminExists();
             companySettingsService.ensureDefaultExists();
+            storeSubscriptionService.ensureSubscriptionExistsForStore(defaultStore);
+            storeSubscriptionService.ensureSubscriptionsForAllStores();
         };
     }
 }
