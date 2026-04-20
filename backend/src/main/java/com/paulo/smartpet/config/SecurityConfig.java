@@ -1,6 +1,7 @@
 package com.paulo.smartpet.config;
 
 import com.paulo.smartpet.security.JwtAuthenticationFilter;
+import com.paulo.smartpet.security.SaasAccessFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -19,15 +20,18 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final SaasAccessFilter saasAccessFilter;
     private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
+            SaasAccessFilter saasAccessFilter,
             UserDetailsService userDetailsService,
             PasswordEncoder passwordEncoder
     ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.saasAccessFilter = saasAccessFilter;
         this.userDetailsService = userDetailsService;
         this.passwordEncoder = passwordEncoder;
     }
@@ -47,7 +51,8 @@ public class SecurityConfig {
                         .frameOptions(frame -> frame.disable())
                 )
                 .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(saasAccessFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }
