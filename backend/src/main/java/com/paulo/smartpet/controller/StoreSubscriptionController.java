@@ -2,9 +2,11 @@ package com.paulo.smartpet.controller;
 
 import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.StoreFeatureAvailabilityResponse;
+import com.paulo.smartpet.dto.StorePlanLimitsResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionHistoryResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionUpdateRequest;
+import com.paulo.smartpet.service.StorePlanLimitService;
 import com.paulo.smartpet.service.StoreSubscriptionService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,9 +20,14 @@ import java.util.List;
 public class StoreSubscriptionController {
 
     private final StoreSubscriptionService storeSubscriptionService;
+    private final StorePlanLimitService storePlanLimitService;
 
-    public StoreSubscriptionController(StoreSubscriptionService storeSubscriptionService) {
+    public StoreSubscriptionController(
+            StoreSubscriptionService storeSubscriptionService,
+            StorePlanLimitService storePlanLimitService
+    ) {
         this.storeSubscriptionService = storeSubscriptionService;
+        this.storePlanLimitService = storePlanLimitService;
     }
 
     @GetMapping
@@ -41,6 +48,11 @@ public class StoreSubscriptionController {
     @GetMapping("/store/{storeId}/history")
     public List<StoreSubscriptionHistoryResponse> getHistoryByStoreId(@PathVariable Long storeId) {
         return storeSubscriptionService.getHistoryByStoreId(storeId);
+    }
+
+    @GetMapping("/store/{storeId}/limits")
+    public StorePlanLimitsResponse getLimitsByStoreId(@PathVariable Long storeId) {
+        return storePlanLimitService.getLimitsByStoreId(storeId);
     }
 
     @PutMapping("/store/{storeId}")

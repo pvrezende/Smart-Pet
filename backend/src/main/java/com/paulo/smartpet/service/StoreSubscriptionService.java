@@ -154,6 +154,10 @@ public class StoreSubscriptionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Assinatura SaaS da loja não encontrada"));
     }
 
+    public StoreSubscriptionResponse toResponsePublic(StoreSubscription subscription) {
+        return toResponse(subscription);
+    }
+
     private void ensureStoreExists(Long storeId) {
         storeRepository.findById(storeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Loja não encontrada"));

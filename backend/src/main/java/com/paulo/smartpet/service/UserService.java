@@ -21,17 +21,20 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final StoreService storeService;
     private final AuthenticatedUserService authenticatedUserService;
+    private final StorePlanLimitService storePlanLimitService;
 
     public UserService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             StoreService storeService,
-            AuthenticatedUserService authenticatedUserService
+            AuthenticatedUserService authenticatedUserService,
+            StorePlanLimitService storePlanLimitService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.storeService = storeService;
         this.authenticatedUserService = authenticatedUserService;
+        this.storePlanLimitService = storePlanLimitService;
     }
 
     public List<UserResponse> list(Long storeId) {
@@ -99,6 +102,10 @@ public class UserService {
         validateUserCreationPermission(currentUser, request);
 
         Store store = resolveStoreForRole(request.role(), request.storeId(), currentUser);
+
+        if (store != null) {
+            storePlanLimitService.validateCanCreateStoreUser(store.getId());
+        }
 
         User user = new User();
         user.setId(null);

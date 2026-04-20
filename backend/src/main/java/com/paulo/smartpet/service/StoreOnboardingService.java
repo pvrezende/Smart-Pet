@@ -39,6 +39,10 @@ public class StoreOnboardingService {
         );
 
         StoreResponse createdStore = storeService.create(storeRequest);
+        Store storeEntity = storeService.getEntityById(createdStore.id());
+
+        StoreSubscriptionResponse subscription = storeSubscriptionService
+                .toResponsePublic(storeSubscriptionService.ensureSubscriptionExistsForStore(storeEntity));
 
         CreateUserRequest createUserRequest = new CreateUserRequest(
                 request.adminName(),
@@ -49,10 +53,6 @@ public class StoreOnboardingService {
         );
 
         UserResponse adminUser = userService.create(createUserRequest);
-
-        Store storeEntity = storeService.getEntityById(createdStore.id());
-        StoreSubscriptionResponse subscription = storeSubscriptionService
-                .getByStoreId(storeSubscriptionService.ensureSubscriptionExistsForStore(storeEntity).getStore().getId());
 
         return new StoreOnboardingResponse(
                 createdStore,
