@@ -10,6 +10,7 @@ import com.paulo.smartpet.dto.SaleCustomerResponse;
 import com.paulo.smartpet.dto.SaleResponse;
 import com.paulo.smartpet.dto.StoreStockSummaryResponse;
 import com.paulo.smartpet.entity.Product;
+import com.paulo.smartpet.entity.SaasFeature;
 import com.paulo.smartpet.entity.Sale;
 import com.paulo.smartpet.entity.Store;
 import com.paulo.smartpet.repository.CustomerRepository;
@@ -35,19 +36,22 @@ public class DashboardService {
     private final SaleRepository saleRepository;
     private final StoreRepository storeRepository;
     private final StoreService storeService;
+    private final StoreFeatureAccessService storeFeatureAccessService;
 
     public DashboardService(
             ProductRepository productRepository,
             CustomerRepository customerRepository,
             SaleRepository saleRepository,
             StoreRepository storeRepository,
-            StoreService storeService
+            StoreService storeService,
+            StoreFeatureAccessService storeFeatureAccessService
     ) {
         this.productRepository = productRepository;
         this.customerRepository = customerRepository;
         this.saleRepository = saleRepository;
         this.storeRepository = storeRepository;
         this.storeService = storeService;
+        this.storeFeatureAccessService = storeFeatureAccessService;
     }
 
     public DashboardResponse getDashboard(Long storeId) {
@@ -150,6 +154,8 @@ public class DashboardService {
     }
 
     public ReportsAnalyticsResponse getReportsAnalytics(Long storeId) {
+        storeFeatureAccessService.validateCurrentUserAccess(SaasFeature.ADVANCED_ANALYTICS);
+
         Store baseStore = storeId != null ? storeService.resolveStore(storeId) : null;
         List<Store> stores = baseStore != null
                 ? List.of(baseStore)
@@ -259,9 +265,9 @@ public class DashboardService {
     }
 
     private BigDecimal getStockValue(Product product) {
-        double salePrice = product.getSalePrice() == null ? 0.0 : product.getSalePrice();
         int stock = product.getStock() == null ? 0 : product.getStock();
-        return BigDecimal.valueOf(salePrice).multiply(BigDecimal.valueOf(stock));
+        double cost = product.getCostPrice() == null ? 0.0 : product.getCostPrice();
+        return BigDecimal.valueOf(stock).multiply(BigDecimal.valueOf(cost));
     }
 
     private BigDecimal sumFinalAmount(List<Sale> sales) {
@@ -271,13 +277,6 @@ public class DashboardService {
     }
 
     private ProductResponse toProductResponse(Product product) {
-        Long storeId = product.getStore() != null ? product.getStore().getId() : null;
-        String storeName = product.getStore() != null ? product.getStore().getName() : null;
-
-        boolean lowStock = product.getStock() != null
-                && product.getMinimumStock() != null
-                && product.getStock() <= product.getMinimumStock();
-
         return new ProductResponse(
                 product.getId(),
                 product.getName(),
@@ -289,22 +288,26 @@ public class DashboardService {
                 product.getStock(),
                 product.getMinimumStock(),
                 product.getBarcode(),
-                storeId,
-                storeName,
+                product.getStore() != null ? product.getStore().getId() : null,
+                product.getStore() != null ? product.getStore().getName() : null,
                 product.getActive(),
-                lowStock
+                product.getStock() != null && product.getMinimumStock() != null && product.getStock() <= product.getMinimumStock()
         );
     }
 
     private SaleResponse toSaleResponse(Sale sale) {
+        SaleCustomerResponse customer = sale.getCustomer() == null
+                ? null
+                : new SaleCustomerResponse(
+                sale.getCustomer().getId(),
+                sale.getCustomer().getName(),
+                sale.getCustomer().getCpf()
+        );
+
         return new SaleResponse(
                 sale.getId(),
                 sale.getSaleDate(),
-                sale.getCustomer() == null ? null : new SaleCustomerResponse(
-                        sale.getCustomer().getId(),
-                        sale.getCustomer().getName(),
-                        sale.getCustomer().getCpf()
-                ),
+                customer,
                 sale.getTotalAmount(),
                 sale.getDiscount(),
                 sale.getFinalAmount(),
@@ -323,7 +326,7 @@ public class DashboardService {
     }
 
     private static class PaymentAccumulator {
-        private long count = 0;
-        private BigDecimal amount = BigDecimal.ZERO;
+        long count = 0;
+        BigDecimal amount = BigDecimal.ZERO;
     }
 }
