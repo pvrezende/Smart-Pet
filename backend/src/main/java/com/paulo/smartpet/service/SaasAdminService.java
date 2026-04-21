@@ -15,7 +15,6 @@ import com.paulo.smartpet.entity.StoreSubscription;
 import com.paulo.smartpet.entity.SubscriptionPlan;
 import com.paulo.smartpet.entity.SubscriptionStatus;
 import com.paulo.smartpet.repository.StoreRepository;
-import com.paulo.smartpet.repository.StoreSubscriptionRepository;
 import com.paulo.smartpet.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
@@ -29,25 +28,25 @@ import java.util.List;
 public class SaasAdminService {
 
     private final StoreRepository storeRepository;
-    private final StoreSubscriptionRepository storeSubscriptionRepository;
     private final UserRepository userRepository;
     private final SaasBillingService saasBillingService;
+    private final StoreSubscriptionService storeSubscriptionService;
 
     public SaasAdminService(
             StoreRepository storeRepository,
-            StoreSubscriptionRepository storeSubscriptionRepository,
             UserRepository userRepository,
-            SaasBillingService saasBillingService
+            SaasBillingService saasBillingService,
+            StoreSubscriptionService storeSubscriptionService
     ) {
         this.storeRepository = storeRepository;
-        this.storeSubscriptionRepository = storeSubscriptionRepository;
         this.userRepository = userRepository;
         this.saasBillingService = saasBillingService;
+        this.storeSubscriptionService = storeSubscriptionService;
     }
 
     public SaasAdminDashboardResponse getDashboard() {
         List<Store> stores = storeRepository.findAll();
-        List<StoreSubscription> subscriptions = storeSubscriptionRepository.findAllByOrderByCreatedAtDesc();
+        List<StoreSubscription> subscriptions = storeSubscriptionService.findAllEntitiesWithAutomaticBillingRefresh();
 
         long totalStores = stores.size();
         long totalActiveStores = stores.stream().filter(store -> Boolean.TRUE.equals(store.getActive())).count();
@@ -99,7 +98,7 @@ public class SaasAdminService {
     }
 
     public SaasAdminFinancialDashboardResponse getFinancialDashboard() {
-        List<StoreSubscription> subscriptions = storeSubscriptionRepository.findAllByOrderByCreatedAtDesc();
+        List<StoreSubscription> subscriptions = storeSubscriptionService.findAllEntitiesWithAutomaticBillingRefresh();
 
         long totalStores = subscriptions.size();
 

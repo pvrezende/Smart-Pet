@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Service
 public class SaasBillingService {
@@ -72,5 +73,35 @@ public class SaasBillingService {
         }
 
         return BillingStatus.PENDING;
+    }
+
+    public BillingStatus resolveAutomaticBillingStatus(StoreSubscription subscription) {
+        if (subscription == null) {
+            return null;
+        }
+
+        if (subscription.getStatus() == SubscriptionStatus.CANCELED
+                || subscription.getBillingStatus() == BillingStatus.CANCELED) {
+            return BillingStatus.CANCELED;
+        }
+
+        if (isTrialActive(subscription)) {
+            return BillingStatus.TRIAL;
+        }
+
+        if (isOverdue(subscription.getBillingStatus(), subscription.getNextBillingDate())) {
+            return BillingStatus.OVERDUE;
+        }
+
+        if (subscription.getBillingStatus() == null || subscription.getBillingStatus() == BillingStatus.TRIAL) {
+            return BillingStatus.PENDING;
+        }
+
+        return subscription.getBillingStatus();
+    }
+
+    public boolean isTrialActive(StoreSubscription subscription) {
+        return subscription.getStatus() == SubscriptionStatus.TRIAL
+                && (subscription.getTrialEndsAt() == null || subscription.getTrialEndsAt().isAfter(LocalDateTime.now()));
     }
 }

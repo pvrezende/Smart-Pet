@@ -4,6 +4,7 @@ import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.StoreBillingSummaryResponse;
 import com.paulo.smartpet.dto.StoreFeatureAvailabilityResponse;
 import com.paulo.smartpet.dto.StorePlanLimitsResponse;
+import com.paulo.smartpet.dto.StoreSubscriptionBillingAutomationResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionBillingHistoryResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionHistoryResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionResponse;
@@ -60,6 +61,14 @@ public class StoreSubscriptionController {
     @GetMapping("/store/{storeId}/billing-history")
     public List<StoreSubscriptionBillingHistoryResponse> getBillingHistoryByStoreId(@PathVariable Long storeId) {
         return storeSubscriptionService.getBillingHistoryByStoreId(storeId);
+    }
+
+    @PostMapping("/billing/refresh-rules")
+    public ApiSuccessResponse<StoreSubscriptionBillingAutomationResponse> refreshBillingRules() {
+        return ApiSuccessResponse.of(
+                "Regras automáticas de vencimento processadas com sucesso",
+                storeSubscriptionService.refreshAutomaticBillingRules()
+        );
     }
 
     @GetMapping("/store/{storeId}/limits")

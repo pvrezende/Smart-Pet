@@ -2,6 +2,7 @@ package com.paulo.smartpet.service;
 
 import com.paulo.smartpet.dto.StoreBillingSummaryResponse;
 import com.paulo.smartpet.dto.StoreFeatureAvailabilityResponse;
+import com.paulo.smartpet.dto.StoreSubscriptionBillingAutomationResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionBillingHistoryResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionHistoryResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionResponse;
@@ -57,9 +58,16 @@ public class StoreSubscriptionService {
     }
 
     public List<StoreSubscriptionResponse> list() {
-        return storeSubscriptionRepository.findAllByOrderByCreatedAtDesc()
+        return findAllEntitiesWithAutomaticBillingRefresh()
                 .stream()
                 .map(this::toResponse)
+                .toList();
+    }
+
+    public List<StoreSubscription> findAllEntitiesWithAutomaticBillingRefresh() {
+        return storeSubscriptionRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(this::applyAutomaticBillingRulesIfNeeded)
                 .toList();
     }
 
@@ -185,7 +193,53 @@ public class StoreSubscriptionService {
             if (changed) {
                 storeSubscriptionRepository.save(subscription);
             }
+
+            applyAutomaticBillingRulesIfNeeded(subscription);
         });
+    }
+
+    @Transactional
+    public StoreSubscriptionBillingAutomationResponse refreshAutomaticBillingRules() {
+        List<StoreSubscription> subscriptions = storeSubscriptionRepository.findAllByOrderByCreatedAtDesc();
+
+        long totalProcessed = subscriptions.size();
+        long totalUpdated = 0L;
+
+        for (StoreSubscription subscription : subscriptions) {
+            BillingStatus before = subscription.getBillingStatus();
+            Integer beforeBillingDay = subscription.getBillingDay();
+            LocalDate beforeNextBillingDate = subscription.getNextBillingDate();
+            BigDecimal beforeMonthlyPrice = subscription.getMonthlyPrice();
+
+            StoreSubscription after = applyAutomaticBillingRulesIfNeeded(subscription);
+
+            boolean changed = before != after.getBillingStatus()
+                    || !Objects.equals(beforeBillingDay, after.getBillingDay())
+                    || !Objects.equals(beforeNextBillingDate, after.getNextBillingDate())
+                    || !sameMoney(beforeMonthlyPrice, after.getMonthlyPrice());
+
+            if (changed) {
+                totalUpdated++;
+            }
+        }
+
+        List<StoreSubscription> refreshed = storeSubscriptionRepository.findAllByOrderByCreatedAtDesc();
+
+        long totalOverdueStores = refreshed.stream()
+                .filter(subscription -> subscription.getBillingStatus() == BillingStatus.OVERDUE)
+                .count();
+
+        long totalPendingStores = refreshed.stream()
+                .filter(subscription -> subscription.getBillingStatus() == BillingStatus.PENDING)
+                .count();
+
+        return new StoreSubscriptionBillingAutomationResponse(
+                totalProcessed,
+                totalUpdated,
+                totalOverdueStores,
+                totalPendingStores,
+                LocalDateTime.now()
+        );
     }
 
     @Transactional
@@ -228,6 +282,8 @@ public class StoreSubscriptionService {
         subscription.setMonthlyPrice(saasBillingService.getMonthlyPrice(request.plan()));
         subscription.setNotes(normalizeBlank(request.notes()));
 
+        subscription = applyAutomaticBillingRulesIfNeeded(subscription);
+
         StoreSubscription saved = storeSubscriptionRepository.save(subscription);
 
         if (previousPlan != saved.getPlan() || previousStatus != saved.getStatus() || hasText(request.notes())) {
@@ -268,8 +324,10 @@ public class StoreSubscriptionService {
     public StoreSubscription getEntityByStoreId(Long storeId) {
         ensureStoreExists(storeId);
 
-        return storeSubscriptionRepository.findByStoreId(storeId)
+        StoreSubscription subscription = storeSubscriptionRepository.findByStoreId(storeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Assinatura SaaS da loja não encontrada"));
+
+        return applyAutomaticBillingRulesIfNeeded(subscription);
     }
 
     public StoreSubscriptionResponse toResponsePublic(StoreSubscription subscription) {
@@ -279,6 +337,52 @@ public class StoreSubscriptionService {
     private void ensureStoreExists(Long storeId) {
         storeRepository.findById(storeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Loja não encontrada"));
+    }
+
+    @Transactional
+    protected StoreSubscription applyAutomaticBillingRulesIfNeeded(StoreSubscription subscription) {
+        if (subscription.getBillingDay() == null) {
+            subscription.setBillingDay(DEFAULT_BILLING_DAY);
+        }
+
+        if (subscription.getNextBillingDate() == null) {
+            subscription.setNextBillingDate(
+                    saasBillingService.calculateNextBillingDate(subscription.getBillingDay(), LocalDate.now())
+            );
+        }
+
+        if (subscription.getMonthlyPrice() == null) {
+            subscription.setMonthlyPrice(saasBillingService.getMonthlyPrice(subscription.getPlan()));
+        }
+
+        BillingStatus previousBillingStatus = subscription.getBillingStatus();
+        BigDecimal previousMonthlyPrice = subscription.getMonthlyPrice();
+        Integer previousBillingDay = subscription.getBillingDay();
+        LocalDate previousNextBillingDate = subscription.getNextBillingDate();
+
+        BillingStatus automaticBillingStatus = saasBillingService.resolveAutomaticBillingStatus(subscription);
+
+        boolean changed = previousBillingStatus != automaticBillingStatus;
+
+        if (changed) {
+            subscription.setBillingStatus(automaticBillingStatus);
+            subscription = storeSubscriptionRepository.save(subscription);
+
+            saveBillingHistory(
+                    subscription.getStore(),
+                    previousBillingStatus,
+                    subscription.getBillingStatus(),
+                    previousMonthlyPrice,
+                    subscription.getMonthlyPrice(),
+                    previousBillingDay,
+                    subscription.getBillingDay(),
+                    previousNextBillingDate,
+                    subscription.getNextBillingDate(),
+                    "Regra automática de vencimento aplicada"
+            );
+        }
+
+        return subscription;
     }
 
     private void saveHistory(
