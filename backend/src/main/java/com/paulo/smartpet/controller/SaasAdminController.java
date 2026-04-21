@@ -1,6 +1,7 @@
 package com.paulo.smartpet.controller;
 
 import com.paulo.smartpet.dto.SaasAdminDashboardResponse;
+import com.paulo.smartpet.dto.SaasAdminFinancialDashboardResponse;
 import com.paulo.smartpet.service.SaasAdminService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,5 +22,10 @@ public class SaasAdminController {
     @GetMapping("/dashboard")
     public SaasAdminDashboardResponse getDashboard() {
         return saasAdminService.getDashboard();
+    }
+
+    @GetMapping("/financial-dashboard")
+    public SaasAdminFinancialDashboardResponse getFinancialDashboard() {
+        return saasAdminService.getFinancialDashboard();
     }
 }
