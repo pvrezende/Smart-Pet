@@ -1,6 +1,7 @@
 package com.paulo.smartpet.dto;
 
 import com.paulo.smartpet.entity.BillingStatus;
+import com.paulo.smartpet.entity.PaymentProvider;
 import com.paulo.smartpet.entity.SaasFeature;
 import com.paulo.smartpet.entity.SubscriptionPlan;
 import com.paulo.smartpet.entity.SubscriptionStatus;
@@ -24,6 +25,10 @@ public record StoreSubscriptionResponse(
         LocalDate nextBillingDate,
         BigDecimal monthlyPrice,
         String notes,
+        PaymentProvider paymentProvider,
+        String externalSubscriptionId,
+        String externalBillingId,
+        String externalBillingStatus,
         Boolean inTrial,
         Boolean activeAccess,
         List<SaasFeature> enabledFeatures,

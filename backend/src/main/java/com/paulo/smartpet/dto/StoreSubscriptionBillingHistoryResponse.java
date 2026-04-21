@@ -1,6 +1,7 @@
 package com.paulo.smartpet.dto;
 
 import com.paulo.smartpet.entity.BillingStatus;
+import com.paulo.smartpet.entity.PaymentProvider;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,6 +19,10 @@ public record StoreSubscriptionBillingHistoryResponse(
         Integer newBillingDay,
         LocalDate previousNextBillingDate,
         LocalDate newNextBillingDate,
+        PaymentProvider paymentProvider,
+        String externalSubscriptionId,
+        String externalBillingId,
+        String externalBillingStatus,
         String notes,
         LocalDateTime changedAt
 ) {

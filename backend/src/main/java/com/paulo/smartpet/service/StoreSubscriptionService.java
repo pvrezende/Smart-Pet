@@ -8,6 +8,7 @@ import com.paulo.smartpet.dto.StoreSubscriptionHistoryResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionUpdateRequest;
 import com.paulo.smartpet.entity.BillingStatus;
+import com.paulo.smartpet.entity.PaymentProvider;
 import com.paulo.smartpet.entity.Store;
 import com.paulo.smartpet.entity.StoreSubscription;
 import com.paulo.smartpet.entity.StoreSubscriptionBillingHistory;
@@ -145,6 +146,10 @@ public class StoreSubscriptionService {
                     );
                     subscription.setMonthlyPrice(saasBillingService.getMonthlyPrice(SubscriptionPlan.BASIC));
                     subscription.setNotes("Assinatura inicial criada automaticamente");
+                    subscription.setPaymentProvider(PaymentProvider.MANUAL);
+                    subscription.setExternalSubscriptionId(null);
+                    subscription.setExternalBillingId(null);
+                    subscription.setExternalBillingStatus(null);
 
                     StoreSubscription saved = storeSubscriptionRepository.save(subscription);
 
@@ -167,6 +172,10 @@ public class StoreSubscriptionService {
                             saved.getBillingDay(),
                             null,
                             saved.getNextBillingDate(),
+                            saved.getPaymentProvider(),
+                            saved.getExternalSubscriptionId(),
+                            saved.getExternalBillingId(),
+                            saved.getExternalBillingStatus(),
                             "Criação inicial automática da cobrança SaaS"
                     );
 
@@ -208,6 +217,11 @@ public class StoreSubscriptionService {
 
             if (subscription.getBillingStatus() == null) {
                 subscription.setBillingStatus(saasBillingService.resolveInitialBillingStatus(subscription.getStatus()));
+                changed = true;
+            }
+
+            if (subscription.getPaymentProvider() == null) {
+                subscription.setPaymentProvider(PaymentProvider.MANUAL);
                 changed = true;
             }
 
@@ -307,6 +321,10 @@ public class StoreSubscriptionService {
 
         subscription.setMonthlyPrice(saasBillingService.getMonthlyPrice(request.plan()));
         subscription.setNotes(normalizeBlank(request.notes()));
+        subscription.setPaymentProvider(request.paymentProvider() != null ? request.paymentProvider() : PaymentProvider.MANUAL);
+        subscription.setExternalSubscriptionId(normalizeBlank(request.externalSubscriptionId()));
+        subscription.setExternalBillingId(normalizeBlank(request.externalBillingId()));
+        subscription.setExternalBillingStatus(normalizeBlank(request.externalBillingStatus()));
 
         subscription = applyAutomaticBillingRulesIfNeeded(subscription);
 
@@ -340,6 +358,10 @@ public class StoreSubscriptionService {
                     saved.getBillingDay(),
                     previousNextBillingDate,
                     saved.getNextBillingDate(),
+                    saved.getPaymentProvider(),
+                    saved.getExternalSubscriptionId(),
+                    saved.getExternalBillingId(),
+                    saved.getExternalBillingStatus(),
                     saved.getNotes()
             );
         }
@@ -361,7 +383,11 @@ public class StoreSubscriptionService {
                         saved.getBillingDay(),
                         previousNextBillingDate,
                         saved.getNextBillingDate(),
-                        saved.getNotes()
+                        saved.getNotes(),
+                        saved.getPaymentProvider(),
+                        saved.getExternalSubscriptionId(),
+                        saved.getExternalBillingId(),
+                        saved.getExternalBillingStatus()
                 )
         );
 
@@ -407,6 +433,10 @@ public class StoreSubscriptionService {
             subscription.setMonthlyPrice(saasBillingService.getMonthlyPrice(subscription.getPlan()));
         }
 
+        if (subscription.getPaymentProvider() == null) {
+            subscription.setPaymentProvider(PaymentProvider.MANUAL);
+        }
+
         BillingStatus previousBillingStatus = subscription.getBillingStatus();
         BillingStatus automaticBillingStatus = saasBillingService.resolveAutomaticBillingStatus(subscription);
 
@@ -424,6 +454,10 @@ public class StoreSubscriptionService {
                     subscription.getBillingDay(),
                     subscription.getNextBillingDate(),
                     subscription.getNextBillingDate(),
+                    subscription.getPaymentProvider(),
+                    subscription.getExternalSubscriptionId(),
+                    subscription.getExternalBillingId(),
+                    subscription.getExternalBillingStatus(),
                     "Regra automática de vencimento aplicada"
             );
 
@@ -565,6 +599,10 @@ public class StoreSubscriptionService {
             Integer newBillingDay,
             LocalDate previousNextBillingDate,
             LocalDate newNextBillingDate,
+            PaymentProvider paymentProvider,
+            String externalSubscriptionId,
+            String externalBillingId,
+            String externalBillingStatus,
             String notes
     ) {
         StoreSubscriptionBillingHistory history = new StoreSubscriptionBillingHistory();
@@ -577,6 +615,10 @@ public class StoreSubscriptionService {
         history.setNewBillingDay(newBillingDay);
         history.setPreviousNextBillingDate(previousNextBillingDate);
         history.setNewNextBillingDate(newNextBillingDate);
+        history.setPaymentProvider(paymentProvider);
+        history.setExternalSubscriptionId(externalSubscriptionId);
+        history.setExternalBillingId(externalBillingId);
+        history.setExternalBillingStatus(externalBillingStatus);
         history.setNotes(normalizeBlank(notes));
         storeSubscriptionBillingHistoryRepository.save(history);
     }
@@ -631,6 +673,10 @@ public class StoreSubscriptionService {
                 subscription.getNextBillingDate(),
                 subscription.getMonthlyPrice(),
                 subscription.getNotes(),
+                subscription.getPaymentProvider(),
+                subscription.getExternalSubscriptionId(),
+                subscription.getExternalBillingId(),
+                subscription.getExternalBillingStatus(),
                 inTrial,
                 activeAccess,
                 saasPlanFeatureService.getEnabledFeatures(subscription.getPlan()),
@@ -667,6 +713,10 @@ public class StoreSubscriptionService {
                 history.getNewBillingDay(),
                 history.getPreviousNextBillingDate(),
                 history.getNewNextBillingDate(),
+                history.getPaymentProvider(),
+                history.getExternalSubscriptionId(),
+                history.getExternalBillingId(),
+                history.getExternalBillingStatus(),
                 history.getNotes(),
                 history.getChangedAt()
         );
@@ -685,7 +735,11 @@ public class StoreSubscriptionService {
             Integer newBillingDay,
             LocalDate previousNextBillingDate,
             LocalDate newNextBillingDate,
-            String notes
+            String notes,
+            PaymentProvider paymentProvider,
+            String externalSubscriptionId,
+            String externalBillingId,
+            String externalBillingStatus
     ) {
         return "plan: " + previousPlan + " -> " + newPlan
                 + ", status: " + previousStatus + " -> " + newStatus
@@ -693,6 +747,10 @@ public class StoreSubscriptionService {
                 + ", monthlyPrice: " + previousMonthlyPrice + " -> " + newMonthlyPrice
                 + ", billingDay: " + previousBillingDay + " -> " + newBillingDay
                 + ", nextBillingDate: " + previousNextBillingDate + " -> " + newNextBillingDate
+                + ", paymentProvider: " + paymentProvider
+                + ", externalSubscriptionId: " + externalSubscriptionId
+                + ", externalBillingId: " + externalBillingId
+                + ", externalBillingStatus: " + externalBillingStatus
                 + (hasText(notes) ? ", notes: " + notes : "");
     }
 

@@ -41,6 +41,19 @@ public class StoreSubscriptionBillingHistory {
     private LocalDate previousNextBillingDate;
     private LocalDate newNextBillingDate;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private PaymentProvider paymentProvider;
+
+    @Column(length = 120)
+    private String externalSubscriptionId;
+
+    @Column(length = 120)
+    private String externalBillingId;
+
+    @Column(length = 60)
+    private String externalBillingStatus;
+
     @Column(length = 255)
     private String notes;
 
@@ -90,6 +103,22 @@ public class StoreSubscriptionBillingHistory {
         return newNextBillingDate;
     }
 
+    public PaymentProvider getPaymentProvider() {
+        return paymentProvider;
+    }
+
+    public String getExternalSubscriptionId() {
+        return externalSubscriptionId;
+    }
+
+    public String getExternalBillingId() {
+        return externalBillingId;
+    }
+
+    public String getExternalBillingStatus() {
+        return externalBillingStatus;
+    }
+
     public String getNotes() {
         return notes;
     }
@@ -136,6 +165,22 @@ public class StoreSubscriptionBillingHistory {
 
     public void setNewNextBillingDate(LocalDate newNextBillingDate) {
         this.newNextBillingDate = newNextBillingDate;
+    }
+
+    public void setPaymentProvider(PaymentProvider paymentProvider) {
+        this.paymentProvider = paymentProvider;
+    }
+
+    public void setExternalSubscriptionId(String externalSubscriptionId) {
+        this.externalSubscriptionId = externalSubscriptionId;
+    }
+
+    public void setExternalBillingId(String externalBillingId) {
+        this.externalBillingId = externalBillingId;
+    }
+
+    public void setExternalBillingStatus(String externalBillingStatus) {
+        this.externalBillingStatus = externalBillingStatus;
     }
 
     public void setNotes(String notes) {

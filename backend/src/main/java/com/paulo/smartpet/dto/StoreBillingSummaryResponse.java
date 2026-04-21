@@ -1,6 +1,7 @@
 package com.paulo.smartpet.dto;
 
 import com.paulo.smartpet.entity.BillingStatus;
+import com.paulo.smartpet.entity.PaymentProvider;
 import com.paulo.smartpet.entity.SubscriptionPlan;
 import com.paulo.smartpet.entity.SubscriptionStatus;
 
@@ -11,11 +12,15 @@ public record StoreBillingSummaryResponse(
         Long storeId,
         String storeName,
         SubscriptionPlan plan,
-        SubscriptionStatus subscriptionStatus,
+        SubscriptionStatus status,
         BillingStatus billingStatus,
         BigDecimal monthlyPrice,
         Integer billingDay,
         LocalDate nextBillingDate,
-        Boolean overdue
+        Boolean overdue,
+        PaymentProvider paymentProvider,
+        String externalSubscriptionId,
+        String externalBillingId,
+        String externalBillingStatus
 ) {
 }
