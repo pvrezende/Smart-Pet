@@ -14,6 +14,10 @@ import java.time.LocalDateTime;
 @Service
 public class SaasBillingService {
 
+    private static final int DEFAULT_BILLING_DAY = 10;
+    private static final int BILLING_WARNING_DAYS = 3;
+    private static final int TRIAL_WARNING_DAYS = 3;
+
     public BigDecimal getMonthlyPrice(SubscriptionPlan plan) {
         if (plan == null) {
             return BigDecimal.ZERO;
@@ -27,7 +31,7 @@ public class SaasBillingService {
     }
 
     public LocalDate calculateNextBillingDate(Integer billingDay, LocalDate referenceDate) {
-        int safeBillingDay = billingDay == null ? 10 : billingDay;
+        int safeBillingDay = billingDay == null ? DEFAULT_BILLING_DAY : billingDay;
         LocalDate base = referenceDate == null ? LocalDate.now() : referenceDate;
 
         int day = Math.min(safeBillingDay, base.lengthOfMonth());
@@ -45,6 +49,40 @@ public class SaasBillingService {
     public boolean isOverdue(BillingStatus billingStatus, LocalDate nextBillingDate) {
         return billingStatus == BillingStatus.OVERDUE
                 || (nextBillingDate != null && nextBillingDate.isBefore(LocalDate.now()));
+    }
+
+    public boolean isBillingDueSoon(LocalDate nextBillingDate) {
+        if (nextBillingDate == null) {
+            return false;
+        }
+
+        LocalDate today = LocalDate.now();
+
+        return !nextBillingDate.isBefore(today)
+                && !nextBillingDate.isAfter(today.plusDays(BILLING_WARNING_DAYS));
+    }
+
+    public boolean isTrialActive(StoreSubscription subscription) {
+        return subscription.getStatus() == SubscriptionStatus.TRIAL
+                && (subscription.getTrialEndsAt() == null || subscription.getTrialEndsAt().isAfter(LocalDateTime.now()));
+    }
+
+    public boolean isTrialExpired(StoreSubscription subscription) {
+        return subscription.getStatus() == SubscriptionStatus.TRIAL
+                && subscription.getTrialEndsAt() != null
+                && !subscription.getTrialEndsAt().isAfter(LocalDateTime.now());
+    }
+
+    public boolean isTrialEndingSoon(StoreSubscription subscription) {
+        if (subscription.getStatus() != SubscriptionStatus.TRIAL || subscription.getTrialEndsAt() == null) {
+            return false;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime warningLimit = now.plusDays(TRIAL_WARNING_DAYS);
+
+        return subscription.getTrialEndsAt().isAfter(now)
+                && !subscription.getTrialEndsAt().isAfter(warningLimit);
     }
 
     public StoreBillingSummaryResponse toBillingSummary(StoreSubscription subscription) {
@@ -98,10 +136,5 @@ public class SaasBillingService {
         }
 
         return subscription.getBillingStatus();
-    }
-
-    public boolean isTrialActive(StoreSubscription subscription) {
-        return subscription.getStatus() == SubscriptionStatus.TRIAL
-                && (subscription.getTrialEndsAt() == null || subscription.getTrialEndsAt().isAfter(LocalDateTime.now()));
     }
 }

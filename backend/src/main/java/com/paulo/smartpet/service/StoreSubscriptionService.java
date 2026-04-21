@@ -43,6 +43,7 @@ public class StoreSubscriptionService {
     private final SaasBillingService saasBillingService;
     private final SaasAuditService saasAuditService;
     private final AuthenticatedUserService authenticatedUserService;
+    private final SaasNotificationService saasNotificationService;
 
     public StoreSubscriptionService(
             StoreSubscriptionRepository storeSubscriptionRepository,
@@ -52,7 +53,8 @@ public class StoreSubscriptionService {
             StoreSubscriptionBillingHistoryRepository storeSubscriptionBillingHistoryRepository,
             SaasBillingService saasBillingService,
             SaasAuditService saasAuditService,
-            AuthenticatedUserService authenticatedUserService
+            AuthenticatedUserService authenticatedUserService,
+            SaasNotificationService saasNotificationService
     ) {
         this.storeSubscriptionRepository = storeSubscriptionRepository;
         this.storeRepository = storeRepository;
@@ -62,6 +64,7 @@ public class StoreSubscriptionService {
         this.saasBillingService = saasBillingService;
         this.saasAuditService = saasAuditService;
         this.authenticatedUserService = authenticatedUserService;
+        this.saasNotificationService = saasNotificationService;
     }
 
     public List<StoreSubscriptionResponse> list() {
@@ -167,6 +170,15 @@ public class StoreSubscriptionService {
                             "Criação inicial automática da cobrança SaaS"
                     );
 
+                    saasNotificationService.create(
+                            saved.getStore().getId(),
+                            "SUBSCRIPTION_CREATED",
+                            "Assinatura SaaS criada",
+                            "A loja " + saved.getStore().getName() + " teve sua assinatura inicial criada automaticamente."
+                    );
+
+                    createWarningNotificationsIfNeeded(saved);
+
                     return saved;
                 });
     }
@@ -203,7 +215,8 @@ public class StoreSubscriptionService {
                 storeSubscriptionRepository.save(subscription);
             }
 
-            applyAutomaticBillingRulesIfNeeded(subscription);
+            StoreSubscription updated = applyAutomaticBillingRulesIfNeeded(subscription);
+            createWarningNotificationsIfNeeded(updated);
         });
     }
 
@@ -220,6 +233,7 @@ public class StoreSubscriptionService {
             LocalDate beforeNextBillingDate = subscription.getNextBillingDate();
 
             StoreSubscription updated = applyAutomaticBillingRulesIfNeeded(subscription);
+            createWarningNotificationsIfNeeded(updated);
 
             if (beforeStatus != updated.getBillingStatus()) {
                 totalUpdated++;
@@ -351,6 +365,9 @@ public class StoreSubscriptionService {
                 )
         );
 
+        createNotificationForManualUpdate(saved, previousStatus, previousBillingStatus);
+        createWarningNotificationsIfNeeded(saved);
+
         return toResponse(saved);
     }
 
@@ -360,7 +377,9 @@ public class StoreSubscriptionService {
         StoreSubscription subscription = storeSubscriptionRepository.findByStoreId(storeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Assinatura SaaS da loja não encontrada"));
 
-        return applyAutomaticBillingRulesIfNeeded(subscription);
+        StoreSubscription updated = applyAutomaticBillingRulesIfNeeded(subscription);
+        createWarningNotificationsIfNeeded(updated);
+        return updated;
     }
 
     public StoreSubscriptionResponse toResponsePublic(StoreSubscription subscription) {
@@ -407,9 +426,115 @@ public class StoreSubscriptionService {
                     subscription.getNextBillingDate(),
                     "Regra automática de vencimento aplicada"
             );
+
+            createNotificationForAutomaticBillingChange(subscription, previousBillingStatus, automaticBillingStatus);
         }
 
         return subscription;
+    }
+
+    private void createNotificationForManualUpdate(
+            StoreSubscription subscription,
+            SubscriptionStatus previousStatus,
+            BillingStatus previousBillingStatus
+    ) {
+        String storeName = subscription.getStore() != null ? subscription.getStore().getName() : "Loja";
+        Long storeId = subscription.getStore() != null ? subscription.getStore().getId() : null;
+
+        if (previousStatus != subscription.getStatus()) {
+            saasNotificationService.create(
+                    storeId,
+                    "SUBSCRIPTION_STATUS_CHANGED",
+                    "Status da assinatura alterado",
+                    "A assinatura da loja " + storeName + " mudou de "
+                            + previousStatus + " para " + subscription.getStatus() + "."
+            );
+        }
+
+        if (previousBillingStatus != subscription.getBillingStatus()) {
+            saasNotificationService.create(
+                    storeId,
+                    "BILLING_STATUS_CHANGED",
+                    "Status financeiro alterado",
+                    "O billing status da loja " + storeName + " mudou de "
+                            + previousBillingStatus + " para " + subscription.getBillingStatus() + "."
+            );
+        }
+
+        if (subscription.getBillingStatus() == BillingStatus.PAID) {
+            saasNotificationService.create(
+                    storeId,
+                    "BILLING_PAID",
+                    "Cobrança regularizada",
+                    "A cobrança da loja " + storeName + " foi marcada como paga."
+            );
+        }
+
+        if (subscription.getBillingStatus() == BillingStatus.OVERDUE) {
+            saasNotificationService.create(
+                    storeId,
+                    "BILLING_OVERDUE",
+                    "Cobrança em atraso",
+                    "A loja " + storeName + " está com cobrança em atraso."
+            );
+        }
+    }
+
+    private void createNotificationForAutomaticBillingChange(
+            StoreSubscription subscription,
+            BillingStatus previousBillingStatus,
+            BillingStatus newBillingStatus
+    ) {
+        String storeName = subscription.getStore() != null ? subscription.getStore().getName() : "Loja";
+        Long storeId = subscription.getStore() != null ? subscription.getStore().getId() : null;
+
+        if (newBillingStatus == BillingStatus.OVERDUE) {
+            saasNotificationService.create(
+                    storeId,
+                    "AUTO_BILLING_OVERDUE",
+                    "Cobrança vencida automaticamente",
+                    "A cobrança da loja " + storeName + " foi marcada automaticamente como OVERDUE. Status anterior: "
+                            + previousBillingStatus + "."
+            );
+        } else if (newBillingStatus == BillingStatus.PENDING) {
+            saasNotificationService.create(
+                    storeId,
+                    "TRIAL_EXPIRED",
+                    "Trial expirado",
+                    "O trial da loja " + storeName + " expirou e a assinatura agora está pendente de cobrança."
+            );
+        }
+    }
+
+    private void createWarningNotificationsIfNeeded(StoreSubscription subscription) {
+        if (subscription.getStore() == null || subscription.getStore().getId() == null) {
+            return;
+        }
+
+        Long storeId = subscription.getStore().getId();
+        String storeName = subscription.getStore().getName();
+
+        if (saasBillingService.isBillingDueSoon(subscription.getNextBillingDate())
+                && subscription.getBillingStatus() != BillingStatus.OVERDUE
+                && subscription.getBillingStatus() != BillingStatus.CANCELED) {
+            saasNotificationService.create(
+                    storeId,
+                    "BILLING_DUE_SOON",
+                    "Cobrança próxima do vencimento",
+                    "A cobrança da loja " + storeName + " vence em breve, na data "
+                            + subscription.getNextBillingDate() + "."
+            );
+        }
+
+        if (saasBillingService.isTrialEndingSoon(subscription)) {
+            saasNotificationService.create(
+                    storeId,
+                    "TRIAL_ENDING_SOON",
+                    "Trial próximo do fim",
+                    "O período de trial da loja " + storeName + " termina em "
+                            + subscription.getTrialEndsAt() + "."
+            );
+        }
     }
 
     private void saveHistory(
