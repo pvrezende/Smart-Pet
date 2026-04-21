@@ -6,6 +6,7 @@ import com.paulo.smartpet.entity.Store;
 import com.paulo.smartpet.repository.CustomerRepository;
 import com.paulo.smartpet.repository.ProductRepository;
 import com.paulo.smartpet.service.CompanySettingsService;
+import com.paulo.smartpet.service.SaasPlanService;
 import com.paulo.smartpet.service.StoreService;
 import com.paulo.smartpet.service.StoreSubscriptionService;
 import com.paulo.smartpet.service.UserService;
@@ -28,7 +29,8 @@ public class SmartPetApplication {
             UserService userService,
             CompanySettingsService companySettingsService,
             StoreService storeService,
-            StoreSubscriptionService storeSubscriptionService
+            StoreSubscriptionService storeSubscriptionService,
+            SaasPlanService saasPlanService
     ) {
         return args -> {
             Store defaultStore = storeService.ensureDefaultStoreExists();
@@ -62,6 +64,7 @@ public class SmartPetApplication {
             companySettingsService.ensureDefaultExists();
             storeSubscriptionService.ensureSubscriptionExistsForStore(defaultStore);
             storeSubscriptionService.ensureSubscriptionsForAllStores();
+            saasPlanService.ensureDefaultPlansExist();
         };
     }
 }

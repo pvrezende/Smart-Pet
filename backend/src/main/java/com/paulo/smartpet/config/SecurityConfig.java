@@ -4,6 +4,7 @@ import com.paulo.smartpet.security.JwtAuthenticationFilter;
 import com.paulo.smartpet.security.SaasAccessFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
@@ -45,6 +46,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/saas-plans/catalog").permitAll()
                         .anyRequest().authenticated()
                 )
                 .headers(headers -> headers

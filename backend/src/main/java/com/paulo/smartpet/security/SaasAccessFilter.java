@@ -33,16 +33,13 @@ public class SaasAccessFilter extends OncePerRequestFilter {
             return;
         }
 
-        try {
-            saasAccessControlService.validateCurrentUserOperationalAccess();
-            filterChain.doFilter(request, response);
-        } catch (RuntimeException ex) {
-            throw ex;
-        }
+        saasAccessControlService.validateCurrentUserOperationalAccess();
+        filterChain.doFilter(request, response);
     }
 
     private boolean shouldSkip(String uri) {
         return uri.startsWith("/api/auth/")
+                || uri.startsWith("/api/saas-plans/catalog")
                 || uri.startsWith("/h2-console")
                 || uri.startsWith("/error")
                 || uri.startsWith("/actuator");
