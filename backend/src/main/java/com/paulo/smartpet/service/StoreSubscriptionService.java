@@ -14,6 +14,7 @@ import com.paulo.smartpet.entity.StoreSubscriptionBillingHistory;
 import com.paulo.smartpet.entity.StoreSubscriptionHistory;
 import com.paulo.smartpet.entity.SubscriptionPlan;
 import com.paulo.smartpet.entity.SubscriptionStatus;
+import com.paulo.smartpet.entity.User;
 import com.paulo.smartpet.exception.ResourceNotFoundException;
 import com.paulo.smartpet.repository.StoreRepository;
 import com.paulo.smartpet.repository.StoreSubscriptionBillingHistoryRepository;
@@ -40,6 +41,8 @@ public class StoreSubscriptionService {
     private final StoreSubscriptionHistoryRepository storeSubscriptionHistoryRepository;
     private final StoreSubscriptionBillingHistoryRepository storeSubscriptionBillingHistoryRepository;
     private final SaasBillingService saasBillingService;
+    private final SaasAuditService saasAuditService;
+    private final AuthenticatedUserService authenticatedUserService;
 
     public StoreSubscriptionService(
             StoreSubscriptionRepository storeSubscriptionRepository,
@@ -47,7 +50,9 @@ public class StoreSubscriptionService {
             SaasPlanFeatureService saasPlanFeatureService,
             StoreSubscriptionHistoryRepository storeSubscriptionHistoryRepository,
             StoreSubscriptionBillingHistoryRepository storeSubscriptionBillingHistoryRepository,
-            SaasBillingService saasBillingService
+            SaasBillingService saasBillingService,
+            SaasAuditService saasAuditService,
+            AuthenticatedUserService authenticatedUserService
     ) {
         this.storeSubscriptionRepository = storeSubscriptionRepository;
         this.storeRepository = storeRepository;
@@ -55,6 +60,8 @@ public class StoreSubscriptionService {
         this.storeSubscriptionHistoryRepository = storeSubscriptionHistoryRepository;
         this.storeSubscriptionBillingHistoryRepository = storeSubscriptionBillingHistoryRepository;
         this.saasBillingService = saasBillingService;
+        this.saasAuditService = saasAuditService;
+        this.authenticatedUserService = authenticatedUserService;
     }
 
     public List<StoreSubscriptionResponse> list() {
@@ -130,7 +137,9 @@ public class StoreSubscriptionService {
                     subscription.setTrialEndsAt(now.plusDays(DEFAULT_TRIAL_DAYS));
                     subscription.setSubscriptionEndsAt(null);
                     subscription.setBillingDay(DEFAULT_BILLING_DAY);
-                    subscription.setNextBillingDate(saasBillingService.calculateNextBillingDate(DEFAULT_BILLING_DAY, LocalDate.now()));
+                    subscription.setNextBillingDate(
+                            saasBillingService.calculateNextBillingDate(DEFAULT_BILLING_DAY, LocalDate.now())
+                    );
                     subscription.setMonthlyPrice(saasBillingService.getMonthlyPrice(SubscriptionPlan.BASIC));
                     subscription.setNotes("Assinatura inicial criada automaticamente");
 
@@ -200,26 +209,29 @@ public class StoreSubscriptionService {
 
     @Transactional
     public StoreSubscriptionBillingAutomationResponse refreshAutomaticBillingRules() {
+        User currentUser = authenticatedUserService.getCurrentUser();
         List<StoreSubscription> subscriptions = storeSubscriptionRepository.findAllByOrderByCreatedAtDesc();
 
         long totalProcessed = subscriptions.size();
         long totalUpdated = 0L;
 
         for (StoreSubscription subscription : subscriptions) {
-            BillingStatus before = subscription.getBillingStatus();
-            Integer beforeBillingDay = subscription.getBillingDay();
+            BillingStatus beforeStatus = subscription.getBillingStatus();
             LocalDate beforeNextBillingDate = subscription.getNextBillingDate();
-            BigDecimal beforeMonthlyPrice = subscription.getMonthlyPrice();
 
-            StoreSubscription after = applyAutomaticBillingRulesIfNeeded(subscription);
+            StoreSubscription updated = applyAutomaticBillingRulesIfNeeded(subscription);
 
-            boolean changed = before != after.getBillingStatus()
-                    || !Objects.equals(beforeBillingDay, after.getBillingDay())
-                    || !Objects.equals(beforeNextBillingDate, after.getNextBillingDate())
-                    || !sameMoney(beforeMonthlyPrice, after.getMonthlyPrice());
-
-            if (changed) {
+            if (beforeStatus != updated.getBillingStatus()) {
                 totalUpdated++;
+
+                saasAuditService.log(
+                        currentUser,
+                        updated.getStore() != null ? updated.getStore().getId() : null,
+                        "AUTO_BILLING_STATUS_REFRESH",
+                        "Regra automática aplicada. billingStatus: "
+                                + beforeStatus + " -> " + updated.getBillingStatus()
+                                + ", nextBillingDate=" + beforeNextBillingDate
+                );
             }
         }
 
@@ -244,11 +256,11 @@ public class StoreSubscriptionService {
 
     @Transactional
     public StoreSubscriptionResponse updateByStoreId(Long storeId, StoreSubscriptionUpdateRequest request) {
+        User currentUser = authenticatedUserService.getCurrentUser();
         StoreSubscription subscription = getEntityByStoreId(storeId);
 
         SubscriptionPlan previousPlan = subscription.getPlan();
         SubscriptionStatus previousStatus = subscription.getStatus();
-
         BillingStatus previousBillingStatus = subscription.getBillingStatus();
         BigDecimal previousMonthlyPrice = subscription.getMonthlyPrice();
         Integer previousBillingDay = subscription.getBillingDay();
@@ -318,6 +330,27 @@ public class StoreSubscriptionService {
             );
         }
 
+        saasAuditService.log(
+                currentUser,
+                saved.getStore() != null ? saved.getStore().getId() : null,
+                "UPDATE_SUBSCRIPTION",
+                buildSubscriptionAuditDetails(
+                        previousPlan,
+                        saved.getPlan(),
+                        previousStatus,
+                        saved.getStatus(),
+                        previousBillingStatus,
+                        saved.getBillingStatus(),
+                        previousMonthlyPrice,
+                        saved.getMonthlyPrice(),
+                        previousBillingDay,
+                        saved.getBillingDay(),
+                        previousNextBillingDate,
+                        saved.getNextBillingDate(),
+                        saved.getNotes()
+                )
+        );
+
         return toResponse(saved);
     }
 
@@ -356,15 +389,9 @@ public class StoreSubscriptionService {
         }
 
         BillingStatus previousBillingStatus = subscription.getBillingStatus();
-        BigDecimal previousMonthlyPrice = subscription.getMonthlyPrice();
-        Integer previousBillingDay = subscription.getBillingDay();
-        LocalDate previousNextBillingDate = subscription.getNextBillingDate();
-
         BillingStatus automaticBillingStatus = saasBillingService.resolveAutomaticBillingStatus(subscription);
 
-        boolean changed = previousBillingStatus != automaticBillingStatus;
-
-        if (changed) {
+        if (previousBillingStatus != automaticBillingStatus) {
             subscription.setBillingStatus(automaticBillingStatus);
             subscription = storeSubscriptionRepository.save(subscription);
 
@@ -372,11 +399,11 @@ public class StoreSubscriptionService {
                     subscription.getStore(),
                     previousBillingStatus,
                     subscription.getBillingStatus(),
-                    previousMonthlyPrice,
                     subscription.getMonthlyPrice(),
-                    previousBillingDay,
+                    subscription.getMonthlyPrice(),
                     subscription.getBillingDay(),
-                    previousNextBillingDate,
+                    subscription.getBillingDay(),
+                    subscription.getNextBillingDate(),
                     subscription.getNextBillingDate(),
                     "Regra automática de vencimento aplicada"
             );
@@ -518,6 +545,30 @@ public class StoreSubscriptionService {
                 history.getNotes(),
                 history.getChangedAt()
         );
+    }
+
+    private String buildSubscriptionAuditDetails(
+            SubscriptionPlan previousPlan,
+            SubscriptionPlan newPlan,
+            SubscriptionStatus previousStatus,
+            SubscriptionStatus newStatus,
+            BillingStatus previousBillingStatus,
+            BillingStatus newBillingStatus,
+            BigDecimal previousMonthlyPrice,
+            BigDecimal newMonthlyPrice,
+            Integer previousBillingDay,
+            Integer newBillingDay,
+            LocalDate previousNextBillingDate,
+            LocalDate newNextBillingDate,
+            String notes
+    ) {
+        return "plan: " + previousPlan + " -> " + newPlan
+                + ", status: " + previousStatus + " -> " + newStatus
+                + ", billingStatus: " + previousBillingStatus + " -> " + newBillingStatus
+                + ", monthlyPrice: " + previousMonthlyPrice + " -> " + newMonthlyPrice
+                + ", billingDay: " + previousBillingDay + " -> " + newBillingDay
+                + ", nextBillingDate: " + previousNextBillingDate + " -> " + newNextBillingDate
+                + (hasText(notes) ? ", notes: " + notes : "");
     }
 
     private String normalizeBlank(String value) {
