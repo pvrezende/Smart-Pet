@@ -2,25 +2,30 @@ package com.paulo.smartpet.service;
 
 import com.paulo.smartpet.dto.StoreBillingSummaryResponse;
 import com.paulo.smartpet.dto.StoreFeatureAvailabilityResponse;
+import com.paulo.smartpet.dto.StoreSubscriptionBillingHistoryResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionHistoryResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionUpdateRequest;
 import com.paulo.smartpet.entity.BillingStatus;
 import com.paulo.smartpet.entity.Store;
 import com.paulo.smartpet.entity.StoreSubscription;
+import com.paulo.smartpet.entity.StoreSubscriptionBillingHistory;
 import com.paulo.smartpet.entity.StoreSubscriptionHistory;
 import com.paulo.smartpet.entity.SubscriptionPlan;
 import com.paulo.smartpet.entity.SubscriptionStatus;
 import com.paulo.smartpet.exception.ResourceNotFoundException;
 import com.paulo.smartpet.repository.StoreRepository;
+import com.paulo.smartpet.repository.StoreSubscriptionBillingHistoryRepository;
 import com.paulo.smartpet.repository.StoreSubscriptionHistoryRepository;
 import com.paulo.smartpet.repository.StoreSubscriptionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class StoreSubscriptionService {
@@ -32,6 +37,7 @@ public class StoreSubscriptionService {
     private final StoreRepository storeRepository;
     private final SaasPlanFeatureService saasPlanFeatureService;
     private final StoreSubscriptionHistoryRepository storeSubscriptionHistoryRepository;
+    private final StoreSubscriptionBillingHistoryRepository storeSubscriptionBillingHistoryRepository;
     private final SaasBillingService saasBillingService;
 
     public StoreSubscriptionService(
@@ -39,12 +45,14 @@ public class StoreSubscriptionService {
             StoreRepository storeRepository,
             SaasPlanFeatureService saasPlanFeatureService,
             StoreSubscriptionHistoryRepository storeSubscriptionHistoryRepository,
+            StoreSubscriptionBillingHistoryRepository storeSubscriptionBillingHistoryRepository,
             SaasBillingService saasBillingService
     ) {
         this.storeSubscriptionRepository = storeSubscriptionRepository;
         this.storeRepository = storeRepository;
         this.saasPlanFeatureService = saasPlanFeatureService;
         this.storeSubscriptionHistoryRepository = storeSubscriptionHistoryRepository;
+        this.storeSubscriptionBillingHistoryRepository = storeSubscriptionBillingHistoryRepository;
         this.saasBillingService = saasBillingService;
     }
 
@@ -78,6 +86,15 @@ public class StoreSubscriptionService {
         return storeSubscriptionHistoryRepository.findByStoreIdOrderByChangedAtDesc(storeId)
                 .stream()
                 .map(this::toHistoryResponse)
+                .toList();
+    }
+
+    public List<StoreSubscriptionBillingHistoryResponse> getBillingHistoryByStoreId(Long storeId) {
+        ensureStoreExists(storeId);
+
+        return storeSubscriptionBillingHistoryRepository.findByStoreIdOrderByChangedAtDesc(storeId)
+                .stream()
+                .map(this::toBillingHistoryResponse)
                 .toList();
     }
 
@@ -118,6 +135,19 @@ public class StoreSubscriptionService {
                             null,
                             saved.getStatus(),
                             "Criação inicial automática da assinatura SaaS"
+                    );
+
+                    saveBillingHistory(
+                            store,
+                            null,
+                            saved.getBillingStatus(),
+                            null,
+                            saved.getMonthlyPrice(),
+                            null,
+                            saved.getBillingDay(),
+                            null,
+                            saved.getNextBillingDate(),
+                            "Criação inicial automática da cobrança SaaS"
                     );
 
                     return saved;
@@ -165,6 +195,11 @@ public class StoreSubscriptionService {
         SubscriptionPlan previousPlan = subscription.getPlan();
         SubscriptionStatus previousStatus = subscription.getStatus();
 
+        BillingStatus previousBillingStatus = subscription.getBillingStatus();
+        BigDecimal previousMonthlyPrice = subscription.getMonthlyPrice();
+        Integer previousBillingDay = subscription.getBillingDay();
+        LocalDate previousNextBillingDate = subscription.getNextBillingDate();
+
         subscription.setPlan(request.plan());
         subscription.setStatus(request.status());
         subscription.setBillingStatus(request.billingStatus());
@@ -206,6 +241,27 @@ public class StoreSubscriptionService {
             );
         }
 
+        if (hasBillingChange(
+                previousBillingStatus,
+                previousMonthlyPrice,
+                previousBillingDay,
+                previousNextBillingDate,
+                saved
+        ) || hasText(request.notes())) {
+            saveBillingHistory(
+                    saved.getStore(),
+                    previousBillingStatus,
+                    saved.getBillingStatus(),
+                    previousMonthlyPrice,
+                    saved.getMonthlyPrice(),
+                    previousBillingDay,
+                    saved.getBillingDay(),
+                    previousNextBillingDate,
+                    saved.getNextBillingDate(),
+                    saved.getNotes()
+            );
+        }
+
         return toResponse(saved);
     }
 
@@ -241,6 +297,55 @@ public class StoreSubscriptionService {
         history.setNewStatus(newStatus);
         history.setNotes(normalizeBlank(notes));
         storeSubscriptionHistoryRepository.save(history);
+    }
+
+    private void saveBillingHistory(
+            Store store,
+            BillingStatus previousBillingStatus,
+            BillingStatus newBillingStatus,
+            BigDecimal previousMonthlyPrice,
+            BigDecimal newMonthlyPrice,
+            Integer previousBillingDay,
+            Integer newBillingDay,
+            LocalDate previousNextBillingDate,
+            LocalDate newNextBillingDate,
+            String notes
+    ) {
+        StoreSubscriptionBillingHistory history = new StoreSubscriptionBillingHistory();
+        history.setStore(store);
+        history.setPreviousBillingStatus(previousBillingStatus);
+        history.setNewBillingStatus(newBillingStatus);
+        history.setPreviousMonthlyPrice(previousMonthlyPrice);
+        history.setNewMonthlyPrice(newMonthlyPrice);
+        history.setPreviousBillingDay(previousBillingDay);
+        history.setNewBillingDay(newBillingDay);
+        history.setPreviousNextBillingDate(previousNextBillingDate);
+        history.setNewNextBillingDate(newNextBillingDate);
+        history.setNotes(normalizeBlank(notes));
+        storeSubscriptionBillingHistoryRepository.save(history);
+    }
+
+    private boolean hasBillingChange(
+            BillingStatus previousBillingStatus,
+            BigDecimal previousMonthlyPrice,
+            Integer previousBillingDay,
+            LocalDate previousNextBillingDate,
+            StoreSubscription saved
+    ) {
+        return previousBillingStatus != saved.getBillingStatus()
+                || !sameMoney(previousMonthlyPrice, saved.getMonthlyPrice())
+                || !Objects.equals(previousBillingDay, saved.getBillingDay())
+                || !Objects.equals(previousNextBillingDate, saved.getNextBillingDate());
+    }
+
+    private boolean sameMoney(BigDecimal a, BigDecimal b) {
+        if (a == null && b == null) {
+            return true;
+        }
+        if (a == null || b == null) {
+            return false;
+        }
+        return a.compareTo(b) == 0;
     }
 
     private StoreSubscriptionResponse toResponse(StoreSubscription subscription) {
@@ -288,6 +393,24 @@ public class StoreSubscriptionService {
                 history.getNewPlan(),
                 history.getPreviousStatus(),
                 history.getNewStatus(),
+                history.getNotes(),
+                history.getChangedAt()
+        );
+    }
+
+    private StoreSubscriptionBillingHistoryResponse toBillingHistoryResponse(StoreSubscriptionBillingHistory history) {
+        return new StoreSubscriptionBillingHistoryResponse(
+                history.getId(),
+                history.getStore() != null ? history.getStore().getId() : null,
+                history.getStore() != null ? history.getStore().getName() : null,
+                history.getPreviousBillingStatus(),
+                history.getNewBillingStatus(),
+                history.getPreviousMonthlyPrice(),
+                history.getNewMonthlyPrice(),
+                history.getPreviousBillingDay(),
+                history.getNewBillingDay(),
+                history.getPreviousNextBillingDate(),
+                history.getNewNextBillingDate(),
                 history.getNotes(),
                 history.getChangedAt()
         );

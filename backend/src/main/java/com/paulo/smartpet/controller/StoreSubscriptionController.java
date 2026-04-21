@@ -4,6 +4,7 @@ import com.paulo.smartpet.dto.ApiSuccessResponse;
 import com.paulo.smartpet.dto.StoreBillingSummaryResponse;
 import com.paulo.smartpet.dto.StoreFeatureAvailabilityResponse;
 import com.paulo.smartpet.dto.StorePlanLimitsResponse;
+import com.paulo.smartpet.dto.StoreSubscriptionBillingHistoryResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionHistoryResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionUpdateRequest;
@@ -51,14 +52,19 @@ public class StoreSubscriptionController {
         return storeSubscriptionService.getHistoryByStoreId(storeId);
     }
 
-    @GetMapping("/store/{storeId}/limits")
-    public StorePlanLimitsResponse getLimitsByStoreId(@PathVariable Long storeId) {
-        return storePlanLimitService.getLimitsByStoreId(storeId);
-    }
-
     @GetMapping("/store/{storeId}/billing")
     public StoreBillingSummaryResponse getBillingSummaryByStoreId(@PathVariable Long storeId) {
         return storeSubscriptionService.getBillingSummaryByStoreId(storeId);
+    }
+
+    @GetMapping("/store/{storeId}/billing-history")
+    public List<StoreSubscriptionBillingHistoryResponse> getBillingHistoryByStoreId(@PathVariable Long storeId) {
+        return storeSubscriptionService.getBillingHistoryByStoreId(storeId);
+    }
+
+    @GetMapping("/store/{storeId}/limits")
+    public StorePlanLimitsResponse getLimitsByStoreId(@PathVariable Long storeId) {
+        return storePlanLimitService.getLimitsByStoreId(storeId);
     }
 
     @PutMapping("/store/{storeId}")
