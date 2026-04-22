@@ -26,9 +26,9 @@ public class SaasAccessFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        String uri = request.getRequestURI();
+        String path = request.getRequestURI();
 
-        if (shouldSkip(uri)) {
+        if (isPublicPath(request, path)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -37,11 +37,10 @@ public class SaasAccessFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private boolean shouldSkip(String uri) {
-        return uri.startsWith("/api/auth/")
-                || uri.startsWith("/api/saas-plans/catalog")
-                || uri.startsWith("/h2-console")
-                || uri.startsWith("/error")
-                || uri.startsWith("/actuator");
+    private boolean isPublicPath(HttpServletRequest request, String path) {
+        return path.startsWith("/api/auth/")
+                || path.startsWith("/h2-console")
+                || ("/api/saas-plans/catalog".equals(path) && "GET".equalsIgnoreCase(request.getMethod()))
+                || ("/api/webhooks/asaas".equals(path) && "POST".equalsIgnoreCase(request.getMethod()));
     }
 }

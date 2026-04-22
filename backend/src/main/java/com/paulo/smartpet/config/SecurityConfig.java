@@ -47,6 +47,7 @@ public class SecurityConfig {
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/saas-plans/catalog").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/webhooks/asaas").permitAll()
                         .anyRequest().authenticated()
                 )
                 .headers(headers -> headers
