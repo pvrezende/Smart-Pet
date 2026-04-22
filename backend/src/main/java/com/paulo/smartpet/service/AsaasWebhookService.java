@@ -3,30 +3,36 @@ package com.paulo.smartpet.service;
 import com.paulo.smartpet.dto.asaas.AsaasWebhookEvent;
 import com.paulo.smartpet.entity.AsaasWebhookEventType;
 import com.paulo.smartpet.entity.BillingStatus;
+import com.paulo.smartpet.entity.SaasWebhookEventLog;
 import com.paulo.smartpet.entity.StoreSubscription;
 import com.paulo.smartpet.entity.StoreSubscriptionBillingHistory;
 import com.paulo.smartpet.exception.BusinessException;
+import com.paulo.smartpet.repository.SaasWebhookEventLogRepository;
 import com.paulo.smartpet.repository.StoreSubscriptionBillingHistoryRepository;
 import com.paulo.smartpet.repository.StoreSubscriptionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Service
 public class AsaasWebhookService {
 
     private final StoreSubscriptionRepository storeSubscriptionRepository;
     private final StoreSubscriptionBillingHistoryRepository storeSubscriptionBillingHistoryRepository;
+    private final SaasWebhookEventLogRepository saasWebhookEventLogRepository;
     private final SaasBillingService saasBillingService;
 
     public AsaasWebhookService(
             StoreSubscriptionRepository storeSubscriptionRepository,
             StoreSubscriptionBillingHistoryRepository storeSubscriptionBillingHistoryRepository,
+            SaasWebhookEventLogRepository saasWebhookEventLogRepository,
             SaasBillingService saasBillingService
     ) {
         this.storeSubscriptionRepository = storeSubscriptionRepository;
         this.storeSubscriptionBillingHistoryRepository = storeSubscriptionBillingHistoryRepository;
+        this.saasWebhookEventLogRepository = saasWebhookEventLogRepository;
         this.saasBillingService = saasBillingService;
     }
 
@@ -46,6 +52,11 @@ public class AsaasWebhookService {
         }
 
         AsaasWebhookEventType eventType = AsaasWebhookEventType.fromValue(event.event());
+        String eventKey = buildEventKey(eventType, externalBillingId, event.payment().status(), event.payment().paymentDate());
+
+        if (saasWebhookEventLogRepository.existsByEventKey(eventKey)) {
+            return "Evento " + eventType.name() + " já havia sido processado para cobrança " + externalBillingId;
+        }
 
         StoreSubscription subscription = storeSubscriptionRepository.findAll().stream()
                 .filter(item -> externalBillingId.equals(item.getExternalBillingId()))
@@ -69,7 +80,30 @@ public class AsaasWebhookService {
                 eventType
         );
 
+        saveWebhookEventLog(eventKey, eventType, externalBillingId);
+
         return "Evento " + eventType.name() + " processado para cobrança " + externalBillingId;
+    }
+
+    private String buildEventKey(
+            AsaasWebhookEventType eventType,
+            String externalBillingId,
+            String paymentStatus,
+            String paymentDate
+    ) {
+        return eventType.name()
+                + "::" + safe(externalBillingId)
+                + "::" + safe(paymentStatus)
+                + "::" + safe(paymentDate);
+    }
+
+    private void saveWebhookEventLog(String eventKey, AsaasWebhookEventType eventType, String externalBillingId) {
+        SaasWebhookEventLog log = new SaasWebhookEventLog();
+        log.setEventKey(eventKey);
+        log.setEventType(eventType.name());
+        log.setExternalBillingId(externalBillingId);
+        log.setProcessedAt(LocalDateTime.now());
+        saasWebhookEventLogRepository.save(log);
     }
 
     private void applyInternalBillingStatus(
