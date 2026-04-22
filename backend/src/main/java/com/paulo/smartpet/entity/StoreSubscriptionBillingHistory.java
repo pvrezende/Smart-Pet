@@ -46,6 +46,9 @@ public class StoreSubscriptionBillingHistory {
     private PaymentProvider paymentProvider;
 
     @Column(length = 120)
+    private String externalCustomerId;
+
+    @Column(length = 120)
     private String externalSubscriptionId;
 
     @Column(length = 120)
@@ -105,6 +108,10 @@ public class StoreSubscriptionBillingHistory {
 
     public PaymentProvider getPaymentProvider() {
         return paymentProvider;
+    }
+
+    public String getExternalCustomerId() {
+        return externalCustomerId;
     }
 
     public String getExternalSubscriptionId() {
@@ -169,6 +176,10 @@ public class StoreSubscriptionBillingHistory {
 
     public void setPaymentProvider(PaymentProvider paymentProvider) {
         this.paymentProvider = paymentProvider;
+    }
+
+    public void setExternalCustomerId(String externalCustomerId) {
+        this.externalCustomerId = externalCustomerId;
     }
 
     public void setExternalSubscriptionId(String externalSubscriptionId) {

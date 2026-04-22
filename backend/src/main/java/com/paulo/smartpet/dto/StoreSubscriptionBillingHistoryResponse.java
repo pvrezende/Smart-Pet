@@ -20,6 +20,7 @@ public record StoreSubscriptionBillingHistoryResponse(
         LocalDate previousNextBillingDate,
         LocalDate newNextBillingDate,
         PaymentProvider paymentProvider,
+        String externalCustomerId,
         String externalSubscriptionId,
         String externalBillingId,
         String externalBillingStatus,

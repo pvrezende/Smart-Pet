@@ -6,10 +6,13 @@ import com.paulo.smartpet.dto.StoreFeatureAvailabilityResponse;
 import com.paulo.smartpet.dto.StorePlanLimitsResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionBillingAutomationResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionBillingHistoryResponse;
+import com.paulo.smartpet.dto.StoreSubscriptionGeneratePaymentRequest;
 import com.paulo.smartpet.dto.StoreSubscriptionHistoryResponse;
+import com.paulo.smartpet.dto.StoreSubscriptionPaymentLinkResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionResponse;
 import com.paulo.smartpet.dto.StoreSubscriptionUpdateRequest;
 import com.paulo.smartpet.service.StorePlanLimitService;
+import com.paulo.smartpet.service.StoreSubscriptionPaymentService;
 import com.paulo.smartpet.service.StoreSubscriptionService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,13 +27,16 @@ public class StoreSubscriptionController {
 
     private final StoreSubscriptionService storeSubscriptionService;
     private final StorePlanLimitService storePlanLimitService;
+    private final StoreSubscriptionPaymentService storeSubscriptionPaymentService;
 
     public StoreSubscriptionController(
             StoreSubscriptionService storeSubscriptionService,
-            StorePlanLimitService storePlanLimitService
+            StorePlanLimitService storePlanLimitService,
+            StoreSubscriptionPaymentService storeSubscriptionPaymentService
     ) {
         this.storeSubscriptionService = storeSubscriptionService;
         this.storePlanLimitService = storePlanLimitService;
+        this.storeSubscriptionPaymentService = storeSubscriptionPaymentService;
     }
 
     @GetMapping
@@ -74,6 +80,17 @@ public class StoreSubscriptionController {
     @GetMapping("/store/{storeId}/limits")
     public StorePlanLimitsResponse getLimitsByStoreId(@PathVariable Long storeId) {
         return storePlanLimitService.getLimitsByStoreId(storeId);
+    }
+
+    @PostMapping("/store/{storeId}/generate-payment")
+    public ApiSuccessResponse<StoreSubscriptionPaymentLinkResponse> generatePayment(
+            @PathVariable Long storeId,
+            @Valid @RequestBody StoreSubscriptionGeneratePaymentRequest request
+    ) {
+        return ApiSuccessResponse.of(
+                "Cobrança gerada com sucesso no ASAAS",
+                storeSubscriptionPaymentService.generatePaymentLink(storeId, request.billingType())
+        );
     }
 
     @PutMapping("/store/{storeId}")

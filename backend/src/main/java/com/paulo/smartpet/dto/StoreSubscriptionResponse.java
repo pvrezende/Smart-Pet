@@ -26,6 +26,7 @@ public record StoreSubscriptionResponse(
         BigDecimal monthlyPrice,
         String notes,
         PaymentProvider paymentProvider,
+        String externalCustomerId,
         String externalSubscriptionId,
         String externalBillingId,
         String externalBillingStatus,

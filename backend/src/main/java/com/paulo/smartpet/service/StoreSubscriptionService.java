@@ -147,6 +147,7 @@ public class StoreSubscriptionService {
                     subscription.setMonthlyPrice(saasBillingService.getMonthlyPrice(SubscriptionPlan.BASIC));
                     subscription.setNotes("Assinatura inicial criada automaticamente");
                     subscription.setPaymentProvider(PaymentProvider.MANUAL);
+                    subscription.setExternalCustomerId(null);
                     subscription.setExternalSubscriptionId(null);
                     subscription.setExternalBillingId(null);
                     subscription.setExternalBillingStatus(null);
@@ -173,6 +174,7 @@ public class StoreSubscriptionService {
                             null,
                             saved.getNextBillingDate(),
                             saved.getPaymentProvider(),
+                            saved.getExternalCustomerId(),
                             saved.getExternalSubscriptionId(),
                             saved.getExternalBillingId(),
                             saved.getExternalBillingStatus(),
@@ -359,6 +361,7 @@ public class StoreSubscriptionService {
                     previousNextBillingDate,
                     saved.getNextBillingDate(),
                     saved.getPaymentProvider(),
+                    saved.getExternalCustomerId(),
                     saved.getExternalSubscriptionId(),
                     saved.getExternalBillingId(),
                     saved.getExternalBillingStatus(),
@@ -385,6 +388,7 @@ public class StoreSubscriptionService {
                         saved.getNextBillingDate(),
                         saved.getNotes(),
                         saved.getPaymentProvider(),
+                        saved.getExternalCustomerId(),
                         saved.getExternalSubscriptionId(),
                         saved.getExternalBillingId(),
                         saved.getExternalBillingStatus()
@@ -455,6 +459,7 @@ public class StoreSubscriptionService {
                     subscription.getNextBillingDate(),
                     subscription.getNextBillingDate(),
                     subscription.getPaymentProvider(),
+                    subscription.getExternalCustomerId(),
                     subscription.getExternalSubscriptionId(),
                     subscription.getExternalBillingId(),
                     subscription.getExternalBillingStatus(),
@@ -600,6 +605,7 @@ public class StoreSubscriptionService {
             LocalDate previousNextBillingDate,
             LocalDate newNextBillingDate,
             PaymentProvider paymentProvider,
+            String externalCustomerId,
             String externalSubscriptionId,
             String externalBillingId,
             String externalBillingStatus,
@@ -616,6 +622,7 @@ public class StoreSubscriptionService {
         history.setPreviousNextBillingDate(previousNextBillingDate);
         history.setNewNextBillingDate(newNextBillingDate);
         history.setPaymentProvider(paymentProvider);
+        history.setExternalCustomerId(externalCustomerId);
         history.setExternalSubscriptionId(externalSubscriptionId);
         history.setExternalBillingId(externalBillingId);
         history.setExternalBillingStatus(externalBillingStatus);
@@ -674,6 +681,7 @@ public class StoreSubscriptionService {
                 subscription.getMonthlyPrice(),
                 subscription.getNotes(),
                 subscription.getPaymentProvider(),
+                subscription.getExternalCustomerId(),
                 subscription.getExternalSubscriptionId(),
                 subscription.getExternalBillingId(),
                 subscription.getExternalBillingStatus(),
@@ -714,6 +722,7 @@ public class StoreSubscriptionService {
                 history.getPreviousNextBillingDate(),
                 history.getNewNextBillingDate(),
                 history.getPaymentProvider(),
+                history.getExternalCustomerId(),
                 history.getExternalSubscriptionId(),
                 history.getExternalBillingId(),
                 history.getExternalBillingStatus(),
@@ -737,6 +746,7 @@ public class StoreSubscriptionService {
             LocalDate newNextBillingDate,
             String notes,
             PaymentProvider paymentProvider,
+            String externalCustomerId,
             String externalSubscriptionId,
             String externalBillingId,
             String externalBillingStatus
@@ -748,6 +758,7 @@ public class StoreSubscriptionService {
                 + ", billingDay: " + previousBillingDay + " -> " + newBillingDay
                 + ", nextBillingDate: " + previousNextBillingDate + " -> " + newNextBillingDate
                 + ", paymentProvider: " + paymentProvider
+                + ", externalCustomerId: " + externalCustomerId
                 + ", externalSubscriptionId: " + externalSubscriptionId
                 + ", externalBillingId: " + externalBillingId
                 + ", externalBillingStatus: " + externalBillingStatus

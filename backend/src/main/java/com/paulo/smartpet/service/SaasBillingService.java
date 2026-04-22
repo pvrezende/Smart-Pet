@@ -99,6 +99,7 @@ public class SaasBillingService {
                 subscription.getNextBillingDate(),
                 overdue,
                 subscription.getPaymentProvider(),
+                subscription.getExternalCustomerId(),
                 subscription.getExternalSubscriptionId(),
                 subscription.getExternalBillingId(),
                 subscription.getExternalBillingStatus()

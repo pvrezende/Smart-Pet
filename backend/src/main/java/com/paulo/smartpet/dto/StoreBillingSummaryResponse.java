@@ -19,6 +19,7 @@ public record StoreBillingSummaryResponse(
         LocalDate nextBillingDate,
         Boolean overdue,
         PaymentProvider paymentProvider,
+        String externalCustomerId,
         String externalSubscriptionId,
         String externalBillingId,
         String externalBillingStatus

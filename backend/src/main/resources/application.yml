@@ -18,3 +18,7 @@ spring:
 
 server:
   port: 8080
+
+asaas:
+  base-url: https://sandbox.asaas.com/api/v3
+  api-key: $aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjVmZjJjNDNmLWQ5M2EtNDQxMC05OWRlLTY1NTg0ZGQzYzIyNDo6JGFhY2hfZTJmMGRmNDMtMTgzNy00Yzk1LTg5MTUtMGY3ZWNiMDMxZTdl
