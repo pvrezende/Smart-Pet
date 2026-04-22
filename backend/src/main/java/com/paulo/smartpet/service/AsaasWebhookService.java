@@ -11,18 +11,23 @@ import com.paulo.smartpet.repository.StoreSubscriptionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+
 @Service
 public class AsaasWebhookService {
 
     private final StoreSubscriptionRepository storeSubscriptionRepository;
     private final StoreSubscriptionBillingHistoryRepository storeSubscriptionBillingHistoryRepository;
+    private final SaasBillingService saasBillingService;
 
     public AsaasWebhookService(
             StoreSubscriptionRepository storeSubscriptionRepository,
-            StoreSubscriptionBillingHistoryRepository storeSubscriptionBillingHistoryRepository
+            StoreSubscriptionBillingHistoryRepository storeSubscriptionBillingHistoryRepository,
+            SaasBillingService saasBillingService
     ) {
         this.storeSubscriptionRepository = storeSubscriptionRepository;
         this.storeSubscriptionBillingHistoryRepository = storeSubscriptionBillingHistoryRepository;
+        this.saasBillingService = saasBillingService;
     }
 
     @Transactional
@@ -49,13 +54,20 @@ public class AsaasWebhookService {
 
         BillingStatus previousBillingStatus = subscription.getBillingStatus();
         String previousExternalBillingStatus = subscription.getExternalBillingStatus();
+        LocalDate previousNextBillingDate = subscription.getNextBillingDate();
 
         subscription.setExternalBillingStatus(event.payment().status());
-        applyInternalBillingStatus(subscription, eventType, event.payment().status());
+        applyInternalBillingStatus(subscription, eventType, event.payment().status(), event.payment().paymentDate());
 
         storeSubscriptionRepository.save(subscription);
 
-        saveBillingHistory(subscription, previousBillingStatus, previousExternalBillingStatus, eventType);
+        saveBillingHistory(
+                subscription,
+                previousBillingStatus,
+                previousExternalBillingStatus,
+                previousNextBillingDate,
+                eventType
+        );
 
         return "Evento " + eventType.name() + " processado para cobrança " + externalBillingId;
     }
@@ -63,10 +75,19 @@ public class AsaasWebhookService {
     private void applyInternalBillingStatus(
             StoreSubscription subscription,
             AsaasWebhookEventType eventType,
-            String paymentStatus
+            String paymentStatus,
+            String paymentDate
     ) {
         if (isPaidEvent(eventType, paymentStatus)) {
             subscription.setBillingStatus(BillingStatus.PAID);
+
+            LocalDate paidDate = parsePaymentDate(paymentDate);
+            LocalDate nextCycleDate = saasBillingService.calculateNextCycleBillingDate(
+                    subscription.getBillingDay(),
+                    paidDate
+            );
+
+            subscription.setNextBillingDate(nextCycleDate);
             return;
         }
 
@@ -77,6 +98,18 @@ public class AsaasWebhookService {
 
         if (isPendingEvent(eventType, paymentStatus)) {
             subscription.setBillingStatus(BillingStatus.PENDING);
+        }
+    }
+
+    private LocalDate parsePaymentDate(String paymentDate) {
+        if (paymentDate == null || paymentDate.isBlank()) {
+            return LocalDate.now();
+        }
+
+        try {
+            return LocalDate.parse(paymentDate.trim());
+        } catch (Exception ex) {
+            return LocalDate.now();
         }
     }
 
@@ -139,6 +172,7 @@ public class AsaasWebhookService {
             StoreSubscription subscription,
             BillingStatus previousBillingStatus,
             String previousExternalBillingStatus,
+            LocalDate previousNextBillingDate,
             AsaasWebhookEventType eventType
     ) {
         StoreSubscriptionBillingHistory history = new StoreSubscriptionBillingHistory();
@@ -149,30 +183,44 @@ public class AsaasWebhookService {
         history.setNewMonthlyPrice(subscription.getMonthlyPrice());
         history.setPreviousBillingDay(subscription.getBillingDay());
         history.setNewBillingDay(subscription.getBillingDay());
-        history.setPreviousNextBillingDate(subscription.getNextBillingDate());
+        history.setPreviousNextBillingDate(previousNextBillingDate);
         history.setNewNextBillingDate(subscription.getNextBillingDate());
         history.setPaymentProvider(subscription.getPaymentProvider());
         history.setExternalCustomerId(subscription.getExternalCustomerId());
         history.setExternalSubscriptionId(subscription.getExternalSubscriptionId());
         history.setExternalBillingId(subscription.getExternalBillingId());
         history.setExternalBillingStatus(subscription.getExternalBillingStatus());
-        history.setNotes(buildNotes(eventType, previousExternalBillingStatus, subscription.getExternalBillingStatus()));
+        history.setNotes(buildNotes(
+                eventType,
+                previousExternalBillingStatus,
+                subscription.getExternalBillingStatus(),
+                previousNextBillingDate,
+                subscription.getNextBillingDate()
+        ));
         storeSubscriptionBillingHistoryRepository.save(history);
     }
 
     private String buildNotes(
             AsaasWebhookEventType eventType,
             String previousExternalBillingStatus,
-            String newExternalBillingStatus
+            String newExternalBillingStatus,
+            LocalDate previousNextBillingDate,
+            LocalDate newNextBillingDate
     ) {
         String notes = "Webhook ASAAS processado. event=" + safe(eventType.name())
                 + ", previousExternalBillingStatus=" + safe(previousExternalBillingStatus)
-                + ", newExternalBillingStatus=" + safe(newExternalBillingStatus);
+                + ", newExternalBillingStatus=" + safe(newExternalBillingStatus)
+                + ", previousNextBillingDate=" + safeDate(previousNextBillingDate)
+                + ", newNextBillingDate=" + safeDate(newNextBillingDate);
 
         return notes.length() > 255 ? notes.substring(0, 255) : notes;
     }
 
     private String safe(String value) {
         return value == null || value.isBlank() ? "-" : value.trim();
+    }
+
+    private String safeDate(LocalDate value) {
+        return value == null ? "-" : value.toString();
     }
 }

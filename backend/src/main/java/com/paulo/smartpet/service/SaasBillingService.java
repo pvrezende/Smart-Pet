@@ -46,6 +46,19 @@ public class SaasBillingService {
         return nextMonth.withDayOfMonth(nextDay);
     }
 
+    public LocalDate calculateNextCycleBillingDate(Integer billingDay, LocalDate paidDate) {
+        int safeBillingDay = billingDay == null || billingDay < 1 || billingDay > 31
+                ? DEFAULT_BILLING_DAY
+                : billingDay;
+
+        LocalDate referenceDate = paidDate == null ? LocalDate.now() : paidDate;
+
+        LocalDate nextMonth = referenceDate.plusMonths(1);
+        int adjustedDay = Math.min(safeBillingDay, nextMonth.lengthOfMonth());
+
+        return nextMonth.withDayOfMonth(adjustedDay);
+    }
+
     public boolean isOverdue(BillingStatus billingStatus, LocalDate nextBillingDate) {
         return billingStatus == BillingStatus.OVERDUE
                 || (nextBillingDate != null && nextBillingDate.isBefore(LocalDate.now()));
