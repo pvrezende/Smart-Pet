@@ -546,12 +546,20 @@ public class StoreSubscriptionService {
     }
 
     private void createWarningNotificationsIfNeeded(StoreSubscription subscription) {
-        if (subscription.getStore() == null || subscription.getStore().getId() == null) {
+        if (subscription == null || subscription.getStore() == null || subscription.getStore().getId() == null) {
             return;
         }
 
         Long storeId = subscription.getStore().getId();
-        String storeName = subscription.getStore().getName();
+        String storeName = "Loja " + storeId;
+
+        try {
+            if (subscription.getStore().getName() != null && !subscription.getStore().getName().isBlank()) {
+                storeName = subscription.getStore().getName();
+            }
+        } catch (Exception ignored) {
+            // evita LazyInitializationException quando o proxy da loja estiver fora da sessão
+        }
 
         if (saasBillingService.isBillingDueSoon(subscription.getNextBillingDate())
                 && subscription.getBillingStatus() != BillingStatus.OVERDUE

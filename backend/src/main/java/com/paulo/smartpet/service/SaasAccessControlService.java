@@ -8,6 +8,8 @@ import com.paulo.smartpet.exception.BillingAccessDeniedException;
 import com.paulo.smartpet.exception.SaasAccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Service
 public class SaasAccessControlService {
 
@@ -42,7 +44,7 @@ public class SaasAccessControlService {
                 return;
             }
             case TRIAL -> {
-                if (subscription.getTrialEndsAt() != null && subscription.getTrialEndsAt().isBefore(java.time.LocalDateTime.now())) {
+                if (subscription.getTrialEndsAt() != null && subscription.getTrialEndsAt().isBefore(LocalDateTime.now())) {
                     throw new SaasAccessDeniedException("Acesso bloqueado: período de trial da loja expirou");
                 }
             }
