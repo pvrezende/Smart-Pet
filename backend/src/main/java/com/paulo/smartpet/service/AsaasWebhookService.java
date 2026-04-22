@@ -1,6 +1,7 @@
 package com.paulo.smartpet.service;
 
 import com.paulo.smartpet.dto.asaas.AsaasWebhookEvent;
+import com.paulo.smartpet.entity.AsaasWebhookEventType;
 import com.paulo.smartpet.entity.BillingStatus;
 import com.paulo.smartpet.entity.StoreSubscription;
 import com.paulo.smartpet.entity.StoreSubscriptionBillingHistory;
@@ -39,6 +40,8 @@ public class AsaasWebhookService {
             throw new BusinessException("Id externo do pagamento não informado no webhook");
         }
 
+        AsaasWebhookEventType eventType = AsaasWebhookEventType.fromValue(event.event());
+
         StoreSubscription subscription = storeSubscriptionRepository.findAll().stream()
                 .filter(item -> externalBillingId.equals(item.getExternalBillingId()))
                 .findFirst()
@@ -48,29 +51,81 @@ public class AsaasWebhookService {
         String previousExternalBillingStatus = subscription.getExternalBillingStatus();
 
         subscription.setExternalBillingStatus(event.payment().status());
-
-        if (isPaidEvent(event.event(), event.payment().status())) {
-            subscription.setBillingStatus(BillingStatus.PAID);
-        }
+        applyInternalBillingStatus(subscription, eventType, event.payment().status());
 
         storeSubscriptionRepository.save(subscription);
 
-        saveBillingHistory(subscription, previousBillingStatus, previousExternalBillingStatus, event);
+        saveBillingHistory(subscription, previousBillingStatus, previousExternalBillingStatus, eventType);
 
-        return "Evento " + event.event() + " processado para cobrança " + externalBillingId;
+        return "Evento " + eventType.name() + " processado para cobrança " + externalBillingId;
     }
 
-    private boolean isPaidEvent(String eventName, String paymentStatus) {
-        if (eventName != null) {
-            String normalizedEvent = eventName.trim().toUpperCase();
-            if ("PAYMENT_RECEIVED".equals(normalizedEvent)
-                    || "PAYMENT_CONFIRMED".equals(normalizedEvent)
-                    || "PAYMENT_UPDATED".equals(normalizedEvent)) {
-                return paymentStatus != null && isPaidStatus(paymentStatus);
-            }
+    private void applyInternalBillingStatus(
+            StoreSubscription subscription,
+            AsaasWebhookEventType eventType,
+            String paymentStatus
+    ) {
+        if (isPaidEvent(eventType, paymentStatus)) {
+            subscription.setBillingStatus(BillingStatus.PAID);
+            return;
+        }
+
+        if (isOverdueEvent(eventType, paymentStatus)) {
+            subscription.setBillingStatus(BillingStatus.OVERDUE);
+            return;
+        }
+
+        if (isPendingEvent(eventType, paymentStatus)) {
+            subscription.setBillingStatus(BillingStatus.PENDING);
+        }
+    }
+
+    private boolean isPaidEvent(AsaasWebhookEventType eventType, String paymentStatus) {
+        if (eventType == AsaasWebhookEventType.PAYMENT_RECEIVED
+                || eventType == AsaasWebhookEventType.PAYMENT_CONFIRMED
+                || eventType == AsaasWebhookEventType.PAYMENT_DUNNING_RECEIVED
+                || eventType == AsaasWebhookEventType.PAYMENT_UPDATED) {
+            return paymentStatus != null && isPaidStatus(paymentStatus);
         }
 
         return paymentStatus != null && isPaidStatus(paymentStatus);
+    }
+
+    private boolean isOverdueEvent(AsaasWebhookEventType eventType, String paymentStatus) {
+        if (eventType == AsaasWebhookEventType.PAYMENT_OVERDUE) {
+            return true;
+        }
+
+        if (paymentStatus == null || paymentStatus.isBlank()) {
+            return false;
+        }
+
+        String normalizedStatus = paymentStatus.trim().toUpperCase();
+        return "OVERDUE".equals(normalizedStatus);
+    }
+
+    private boolean isPendingEvent(AsaasWebhookEventType eventType, String paymentStatus) {
+        if (eventType == AsaasWebhookEventType.PAYMENT_DELETED
+                || eventType == AsaasWebhookEventType.PAYMENT_RESTORED
+                || eventType == AsaasWebhookEventType.PAYMENT_REFUNDED
+                || eventType == AsaasWebhookEventType.PAYMENT_CHARGEBACK_REQUESTED
+                || eventType == AsaasWebhookEventType.PAYMENT_CHARGEBACK_DISPUTE
+                || eventType == AsaasWebhookEventType.PAYMENT_AWAITING_CHARGEBACK_REVERSAL) {
+            return true;
+        }
+
+        if (paymentStatus == null || paymentStatus.isBlank()) {
+            return false;
+        }
+
+        String normalizedStatus = paymentStatus.trim().toUpperCase();
+        return "PENDING".equals(normalizedStatus)
+                || "AWAITING_RISK_ANALYSIS".equals(normalizedStatus)
+                || "REFUNDED".equals(normalizedStatus)
+                || "RECEIVED_IN_CASH_UNDONE".equals(normalizedStatus)
+                || "CHARGEBACK_REQUESTED".equals(normalizedStatus)
+                || "CHARGEBACK_DISPUTE".equals(normalizedStatus)
+                || "AWAITING_CHARGEBACK_REVERSAL".equals(normalizedStatus);
     }
 
     private boolean isPaidStatus(String paymentStatus) {
@@ -84,7 +139,7 @@ public class AsaasWebhookService {
             StoreSubscription subscription,
             BillingStatus previousBillingStatus,
             String previousExternalBillingStatus,
-            AsaasWebhookEvent event
+            AsaasWebhookEventType eventType
     ) {
         StoreSubscriptionBillingHistory history = new StoreSubscriptionBillingHistory();
         history.setStore(subscription.getStore());
@@ -101,12 +156,16 @@ public class AsaasWebhookService {
         history.setExternalSubscriptionId(subscription.getExternalSubscriptionId());
         history.setExternalBillingId(subscription.getExternalBillingId());
         history.setExternalBillingStatus(subscription.getExternalBillingStatus());
-        history.setNotes(buildNotes(event.event(), previousExternalBillingStatus, subscription.getExternalBillingStatus()));
+        history.setNotes(buildNotes(eventType, previousExternalBillingStatus, subscription.getExternalBillingStatus()));
         storeSubscriptionBillingHistoryRepository.save(history);
     }
 
-    private String buildNotes(String eventName, String previousExternalBillingStatus, String newExternalBillingStatus) {
-        String notes = "Webhook ASAAS processado. event=" + safe(eventName)
+    private String buildNotes(
+            AsaasWebhookEventType eventType,
+            String previousExternalBillingStatus,
+            String newExternalBillingStatus
+    ) {
+        String notes = "Webhook ASAAS processado. event=" + safe(eventType.name())
                 + ", previousExternalBillingStatus=" + safe(previousExternalBillingStatus)
                 + ", newExternalBillingStatus=" + safe(newExternalBillingStatus);
 
