@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { SaasBlockService } from '../../core/services/saas-block.service';
 
 @Component({
   selector: 'app-navbar',
@@ -10,6 +11,11 @@ import { AuthService } from '../../core/services/auth.service';
         <div class="navbar-brand-block">
           <h1 class="navbar-brand">Smart Pet</h1>
           <p class="navbar-subbrand">Sistema de gestão para pet shop</p>
+        </div>
+
+        <div class="navbar-user-meta">
+          <span class="navbar-user-name">Olá, {{ auth.userName() }}</span>
+          <span class="topbar-role-chip">{{ auth.roleLabel() }}</span>
         </div>
 
         <nav class="navbar-menu">
@@ -43,10 +49,12 @@ import { AuthService } from '../../core/services/auth.service';
 export class NavbarComponent {
   constructor(
     public auth: AuthService,
-    private router: Router
+    private router: Router,
+    private saasBlockService: SaasBlockService
   ) {}
 
   logout(): void {
+    this.saasBlockService.clear();
     this.auth.logout();
     this.router.navigate(['/login']);
   }
