@@ -22,12 +22,23 @@ import { SaasBlockService } from '../../core/services/saas-block.service';
           <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
             Dashboard
           </a>
+
+          <a
+            *ngIf="auth.hasAnyRole(['SUPER_ADMIN', 'ADMIN'])"
+            routerLink="/stores"
+            routerLinkActive="active"
+          >
+            Lojas
+          </a>
+
           <a routerLink="/products" routerLinkActive="active">
             Produtos
           </a>
+
           <a routerLink="/customers" routerLinkActive="active">
             Clientes
           </a>
+
           <a routerLink="/sales" routerLinkActive="active">
             Vendas
           </a>

@@ -15,6 +15,7 @@ import { CustomersPageComponent } from './pages/customers/customers.component';
 import { SalesPageComponent } from './pages/sales/sales.component';
 import { LoginPageComponent } from './pages/login/login.component';
 import { BlockedPageComponent } from './pages/blocked/blocked.component';
+import { StoresPageComponent } from './pages/stores/stores.component';
 
 import { AuthGuard } from './core/guards/auth.guard';
 import { RoleGuard } from './core/guards/role.guard';
@@ -31,6 +32,12 @@ const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'stores',
+    component: StoresPageComponent,
+    canActivate: [AuthGuard, RoleGuard],
+    data: { roles: ['SUPER_ADMIN', 'ADMIN'] }
+  },
+  {
     path: 'products',
     component: ProductsPageComponent,
     canActivate: [AuthGuard]
@@ -45,7 +52,6 @@ const routes: Routes = [
     component: SalesPageComponent,
     canActivate: [AuthGuard]
   },
-
   {
     path: '**',
     redirectTo: ''
@@ -61,7 +67,8 @@ const routes: Routes = [
     CustomersPageComponent,
     SalesPageComponent,
     LoginPageComponent,
-    BlockedPageComponent
+    BlockedPageComponent,
+    StoresPageComponent
   ],
   imports: [
     BrowserModule,

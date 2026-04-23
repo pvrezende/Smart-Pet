@@ -5,6 +5,7 @@ import { Product } from '../../models/product.model';
 import { Customer } from '../../models/customer.model';
 import { Dashboard } from '../../models/dashboard.model';
 import { environment } from '../../../environments/environment';
+import { Store, CreateStorePayload } from '../../models/store.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -54,5 +55,17 @@ export class ApiService {
     return this.http.post(`${this.baseUrl}/sales`, payload, {
       responseType: 'text' as 'json'
     });
+  }
+
+  getStores(): Observable<Store[]> {
+    return this.http.get<Store[]>(`${this.baseUrl}/stores`);
+  }
+
+  createStore(payload: CreateStorePayload): Observable<Store> {
+    return this.http.post<Store>(`${this.baseUrl}/stores`, payload);
+  }
+
+  deactivateStore(id: number) {
+    return this.http.patch(`${this.baseUrl}/stores/${id}/deactivate`, {});
   }
 }
